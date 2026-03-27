@@ -2,547 +2,519 @@
 <html lang="pt">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RugPump | The Final FOMO Simulator</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RugPump Pro | Desktop Trading Terminal</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --fomo-purple: #7B3FE4;
-            --true-black: #000000;
-            --card-gray: #0D0D0D;
-            --neon-green: #22c55e;
-            --rug-red: #ef4444;
-        }
-
-        body { 
-            background-color: var(--true-black); 
-            color: white; 
-            font-family: 'Inter', sans-serif;
-            user-select: none;
-            -webkit-font-smoothing: antialiased;
-        }
-
+        :root { --purple: #7B3FE4; --green: #00FF41; --red: #FF3131; --bg: #050505; --panel: #0D0D0D; }
+        body { background-color: var(--bg); color: #e2e8f0; font-family: 'Inter', sans-serif; overflow: hidden; height: 100vh; }
         .mono { font-family: 'JetBrains Mono', monospace; }
-
-        /* Animations */
-        @keyframes pulse-purple {
-            0% { box-shadow: 0 0 0 0 rgba(123, 63, 228, 0.4); }
-            70% { box-shadow: 0 0 0 15px rgba(123, 63, 228, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(123, 63, 228, 0); }
-        }
-
-        .fomo-btn {
-            background-color: var(--fomo-purple);
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .fomo-btn:active { transform: scale(0.95); filter: brightness(1.2); }
-
-        .rug-shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
-        @keyframes shake {
-            10%, 90% { transform: translate3d(-1px, 0, 0); }
-            20%, 80% { transform: translate3d(2px, 0, 0); }
-            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
-            40%, 60% { transform: translate3d(4px, 0, 0); }
-        }
-
-        /* Chart Styles */
-        .chart-line { fill: none; stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; transition: all 0.5s ease; }
-        .chart-area { fill: url(#chartGradient); opacity: 0.15; transition: all 0.5s ease; }
-        .buy-dot { fill: var(--neon-green); stroke: black; stroke-width: 2; }
-        .sell-dot { fill: var(--rug-red); stroke: white; stroke-width: 2; }
-
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 0px; background: transparent; }
-
-        .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.05); }
-        
-        .nav-icon { color: #52525b; transition: color 0.3s; }
-        .nav-active { color: var(--fomo-purple) !important; }
-
-        .tab-content { display: none; height: 100%; flex-direction: column; }
-        .tab-active { display: flex; }
+        .panel { background: var(--panel); border: 1px solid #1f1f23; border-radius: 12px; }
+        .btn-purple { background: var(--purple); transition: 0.2s; }
+        .btn-purple:hover { filter: brightness(1.2); transform: translateY(-1px); }
+        .custom-scroll::-webkit-scrollbar { width: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #2a2a2e; border-radius: 10px; }
+        canvas { width: 100%; height: 100%; image-rendering: pixelated; }
+        .tab-btn.active { border-bottom: 2px solid var(--purple); color: white; }
+        .input-dark { background: #16161a; border: 1px solid #2a2a2e; outline: none; transition: 0.2s; }
+        .input-dark:focus { border-color: var(--purple); }
+        .glow-green { text-shadow: 0 0 10px rgba(0, 255, 65, 0.3); }
+        .glow-red { text-shadow: 0 0 10px rgba(255, 49, 49, 0.3); }
     </style>
 </head>
-<body class="max-w-md mx-auto h-screen relative flex flex-col border-x border-white/5">
+<body class="flex flex-col p-2 gap-2">
 
-    <div id="trade-modal" class="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md hidden flex flex-col">
-        <div class="flex-1 overflow-y-auto pb-32">
-            <header class="p-6 flex justify-between items-center sticky top-0 bg-black/50 z-10">
-                <button onclick="closeTrade()"><i data-lucide="x" class="w-8 h-8 text-white"></i></button>
-                <div class="text-center">
-                    <p id="m-coin-symbol" class="font-black text-xl italic uppercase tracking-tighter">BTC</p>
-                    <p id="m-coin-status" class="text-[10px] font-bold text-zinc-500 tracking-widest uppercase">Live Market</p>
-                </div>
-                <div class="w-8"></div>
-            </header>
-
-            <div class="px-6 flex justify-between items-end mt-4 mb-8">
-                <div id="m-coin-icon" class="w-20 h-20 rounded-3xl bg-zinc-900 border border-white/10 overflow-hidden shadow-2xl shadow-purple-500/10"></div>
-                <div class="text-right">
-                    <p id="m-coin-mcap" class="text-3xl font-black italic mono">$0.00M</p>
-                    <p class="text-zinc-500 text-xs font-bold uppercase tracking-widest">Market Cap</p>
-                </div>
+    <nav class="h-14 panel flex items-center justify-between px-6 shrink-0">
+        <div class="flex items-center gap-6">
+            <div class="flex items-center gap-2">
+                <div class="bg-purple-600 p-1.5 rounded-lg"><i data-lucide="zap" class="w-5 h-5 fill-current"></i></div>
+                <h1 class="text-xl font-black italic tracking-tighter uppercase">RUGPUMP <span class="text-purple-500">PRO</span></h1>
             </div>
-
-            <div class="w-full h-64 relative px-2 mb-6">
-                <svg id="svg-chart" class="w-full h-full" viewBox="0 0 400 200" preserveAspectRatio="none">
-                    <defs>
-                        <linearGradient id="chartGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" stop-color="var(--neon-green)" />
-                            <stop offset="100%" stop-color="transparent" />
-                        </defs>
-                    </defs>
-                    <path id="path-area" class="chart-area" d=""></path>
-                    <path id="path-line" class="chart-line" d="" stroke="var(--neon-green)"></path>
-                    <g id="chart-markers"></g>
-                </svg>
-            </div>
-
-            <div class="px-6 space-y-6">
-                <div class="flex justify-between items-center p-6 glass rounded-[32px]">
-                    <div>
-                        <p id="m-user-pos" class="text-2xl font-black italic mono">$0.00</p>
-                        <p id="m-user-tokens" class="text-[10px] text-zinc-500 font-bold">0.00 TOKENS</p>
-                    </div>
-                    <div class="text-right">
-                        <p id="m-user-pnl" class="text-xl font-black italic text-zinc-600">$0.00</p>
-                        <p id="m-user-pnl-perc" class="text-[10px] font-bold text-zinc-500 italic">0.00%</p>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="space-y-1">
-                        <label class="text-[10px] font-black text-zinc-500 uppercase ml-2">Quantia em USD</label>
-                        <input id="trade-input" type="number" value="1000" class="w-full bg-zinc-900 border border-white/10 p-5 rounded-3xl text-xl font-black italic mono focus:ring-2 ring-purple-600 outline-none transition-all">
-                    </div>
-                    <div class="flex flex-col gap-2 pt-5">
-                        <button onclick="executeTrade('buy')" class="flex-1 fomo-btn rounded-3xl font-black text-lg uppercase tracking-tighter">Buy</button>
-                        <button onclick="executeTrade('sell')" class="flex-1 bg-zinc-800 text-white rounded-3xl font-black text-lg uppercase tracking-tighter hover:bg-zinc-700">Sell</button>
-                    </div>
-                </div>
+            <div class="h-6 w-px bg-zinc-800"></div>
+            <div class="flex gap-4 text-xs font-bold text-zinc-500 uppercase tracking-widest">
+                <span class="text-purple-400">Terminal</span>
+                <span class="hover:text-white cursor-pointer">Explore</span>
+                <span class="hover:text-white cursor-pointer">Lending</span>
             </div>
         </div>
-    </div>
-
-    <div id="tab-market" class="tab-content tab-active">
-        <header class="p-8 pb-4">
-            <div class="flex justify-between items-center mb-4">
-                <h1 class="text-4xl font-black tracking-tighter italic uppercase">Rug<span class="text-purple-600">Pump</span></h1>
-                <div class="flex gap-4">
-                    <button class="w-10 h-10 glass rounded-full flex items-center justify-center"><i data-lucide="search" class="w-5"></i></button>
-                    <button class="w-10 h-10 glass rounded-full flex items-center justify-center"><i data-lucide="bell" class="w-5"></i></button>
-                </div>
+        <div class="flex items-center gap-8">
+            <div class="text-right">
+                <p class="text-[10px] text-zinc-500 font-bold uppercase">Cash Balance</p>
+                <p id="total-balance" class="text-lg font-black italic mono text-green-400">$10,000.00</p>
             </div>
-            <div>
-                <p class="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Total Net Worth</p>
-                <div class="flex items-baseline gap-2">
-                    <span id="h-balance" class="text-4xl font-black italic mono">$10,000.00</span>
-                    <span class="text-green-500 text-sm font-bold italic">▲ 0.00%</span>
-                </div>
+            <div class="flex items-center gap-3 border-l border-zinc-800 pl-8">
+                <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-500 to-blue-500"></div>
+                <span class="text-sm font-bold">saxon_pro</span>
             </div>
-        </header>
-
-        <div class="px-8 flex gap-6 overflow-x-auto no-scrollbar border-b border-white/5 py-4 mb-4">
-            <button class="text-sm font-black uppercase tracking-tighter border-b-2 border-purple-600 pb-2">Trending</button>
-            <button class="text-sm font-black uppercase tracking-tighter text-zinc-600 pb-2">Top Gainers</button>
-            <button class="text-sm font-black uppercase tracking-tighter text-zinc-600 pb-2">Newly Listed</button>
-            <button class="text-sm font-black uppercase tracking-tighter text-zinc-600 pb-2">Anti-Rug</button>
         </div>
-
-        <div id="market-list" class="flex-1 overflow-y-auto px-8 space-y-6 pb-24">
-            </div>
-    </div>
-
-    <div id="tab-profile" class="tab-content">
-        <header class="p-8">
-            <div class="flex justify-between items-start mb-8">
-                <div class="flex items-center gap-4">
-                    <div class="w-16 h-16 rounded-3xl bg-gradient-to-br from-purple-600 to-pink-600 border-2 border-white/20 shadow-xl"></div>
-                    <div>
-                        <p class="text-2xl font-black italic tracking-tighter">@RugMaster_69</p>
-                        <p class="text-xs text-zinc-500 font-bold uppercase tracking-widest">Master Degenerate</p>
-                    </div>
-                </div>
-                <button class="w-10 h-10 glass rounded-full flex items-center justify-center"><i data-lucide="settings" class="w-5"></i></button>
-            </div>
-
-            <div class="flex justify-between p-6 glass rounded-[32px] mb-8">
-                <div class="text-center">
-                    <p class="text-lg font-black italic mono">42</p>
-                    <p class="text-[10px] font-bold text-zinc-500 uppercase tracking-tighter">Trades</p>
-                </div>
-                <div class="h-10 w-[1px] bg-white/10"></div>
-                <div class="text-center">
-                    <p class="text-lg font-black italic mono">89%</p>
-                    <p class="text-[10px] font-bold text-zinc-500 uppercase tracking-tighter">Win Rate</p>
-                </div>
-                <div class="h-10 w-[1px] bg-white/10"></div>
-                <div class="text-center">
-                    <p class="text-lg font-black italic mono">1.2M</p>
-                    <p class="text-[10px] font-bold text-zinc-500 uppercase tracking-tighter">Score</p>
-                </div>
-            </div>
-
-            <h3 class="text-xl font-black italic uppercase tracking-tighter mb-4">Open Positions</h3>
-            <div id="portfolio-list" class="space-y-4 mb-10">
-                </div>
-
-            <h3 class="text-xl font-black italic uppercase tracking-tighter mb-4">Trade History</h3>
-            <div id="history-list" class="space-y-4 opacity-50">
-                </div>
-        </header>
-    </div>
-
-    <div id="tab-social" class="tab-content">
-        <header class="p-8">
-            <h2 class="text-3xl font-black italic uppercase tracking-tighter mb-2">Social Feed</h2>
-            <p class="text-xs text-zinc-500 font-bold uppercase tracking-widest mb-8">Don't trade alone. See the whales.</p>
-            
-            <div class="space-y-4">
-                <div class="p-6 glass rounded-[32px] border-l-4 border-green-500">
-                    <div class="flex justify-between mb-3">
-                        <div class="flex items-center gap-2">
-                            <div class="w-8 h-8 rounded-full bg-zinc-800"></div>
-                            <span class="text-sm font-black italic">@WhaleWatcher</span>
-                        </div>
-                        <span class="text-[10px] font-bold text-green-500">PROFIT +$142,000</span>
-                    </div>
-                    <p class="text-sm text-zinc-400">Just dumped <span class="text-white font-bold">$SOL</span> to buy <span class="text-white font-bold">$CHILLGUY</span>. FOMO is real! 🚀</p>
-                </div>
-
-                <div class="p-6 glass rounded-[32px] border-l-4 border-red-500">
-                    <div class="flex justify-between mb-3">
-                        <div class="flex items-center gap-2">
-                            <div class="w-8 h-8 rounded-full bg-zinc-800"></div>
-                            <span class="text-sm font-black italic">@LosingMyMind</span>
-                        </div>
-                        <span class="text-[10px] font-bold text-red-500">RUGGED -$12,000</span>
-                    </div>
-                    <p class="text-sm text-zinc-400">I hate this game. <span class="text-white font-bold">$MOON_INU</span> just pulled the rug on me. Devs are gone. 💀</p>
-                </div>
-            </div>
-        </header>
-    </div>
-
-    <nav class="fixed bottom-0 w-full max-w-md h-24 bg-black/80 backdrop-blur-xl border-t border-white/5 flex justify-around items-center px-10 z-[80]">
-        <button onclick="switchTab('market')" class="nav-item nav-active" id="nav-market"><i data-lucide="home" class="w-7 h-7"></i></button>
-        <button onclick="switchTab('social')" class="nav-item" id="nav-social"><i data-lucide="users" class="w-7 h-7"></i></button>
-        <button onclick="switchTab('profile')" class="nav-item" id="nav-profile"><i data-lucide="user" class="w-7 h-7"></i></button>
     </nav>
 
-    <script>
-        // --- DATA & STATE ---
-        let balance = 10000;
-        let portfolio = {};
-        let activeCoin = null;
-        let history = [];
-        let coins = [];
+    <main class="flex-1 flex gap-2 overflow-hidden">
+        
+        <aside class="w-80 panel flex flex-col overflow-hidden shrink-0">
+            <div class="p-4 border-b border-zinc-800 flex justify-between items-center">
+                <h2 class="font-bold text-sm uppercase text-zinc-500 tracking-widest">Markets</h2>
+                <i data-lucide="filter" class="w-4 h-4 text-zinc-500"></i>
+            </div>
+            <div id="market-list" class="flex-1 overflow-y-auto custom-scroll p-2 space-y-1">
+                </div>
+        </aside>
 
-        const BLUE_CHIPS = ["Bitcoin", "Ethereum", "Solana", "Cardano", "Polkadot", "Avalanche", "Chainlink", "Polygon", "Litecoin", "Algorand", "Cosmos", "Monero", "Stellar", "Near", "Fantom"];
-        const MEME_PREFIX = ["CHILL", "DOGE", "PEPE", "WOJAK", "CHAD", "PUMP", "MOON", "RUG", "AI", "SAFE", "TURBO", "FLOKI", "BONK", "MOG", "GOAT", "TRUMP", "POPCAT", "WIF"];
-        const MEME_SUFFIX = ["GUY", "INU", "CAP", "BULL", "ROCKET", "DAO", "X", "ZILLA", "COIN", "GOAT", "DENG", "BOME", "MYRO", "SLERF", "ZEREBRO"];
+        <section class="flex-1 flex flex-col gap-2 overflow-hidden">
+            <div class="panel p-4 flex justify-between items-center shrink-0">
+                <div class="flex items-center gap-4">
+                    <div id="active-icon" class="w-12 h-12 rounded-xl bg-zinc-900 border border-white/5 overflow-hidden"></div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h2 id="active-name" class="text-2xl font-black tracking-tight italic uppercase">---</h2>
+                            <span id="verified-badge" class="hidden text-[10px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded border border-blue-500/30 font-bold uppercase tracking-widest">Verified Anti-Rug</span>
+                        </div>
+                        <p id="active-mcap" class="text-xs text-zinc-500 font-bold mono uppercase">MCap: $0.00M</p>
+                    </div>
+                </div>
+                <div class="flex gap-2 p-1 bg-zinc-900/50 rounded-lg">
+                    <button onclick="setChartType('line')" id="btn-line" class="px-3 py-1 text-xs font-bold rounded hover:bg-zinc-800 transition active">Line</button>
+                    <button onclick="setChartType('candles')" id="btn-candles" class="px-3 py-1 text-xs font-bold rounded hover:bg-zinc-800 transition">Candles</button>
+                </div>
+            </div>
+
+            <div class="panel flex-1 relative overflow-hidden flex flex-col">
+                <div class="absolute top-4 left-6 z-10">
+                    <p id="live-price" class="text-4xl font-black mono italic text-green-400">$0.00</p>
+                    <p id="live-change" class="text-xs font-bold text-green-500">▲ 0.00%</p>
+                </div>
+                <div class="flex-1 p-4 pt-16">
+                    <canvas id="main-chart"></canvas>
+                </div>
+                <div class="p-4 border-t border-zinc-800 flex gap-4 items-end bg-black/20">
+                    <div class="flex-1 space-y-2">
+                        <label class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Order Size (USD)</label>
+                        <input id="trade-amount" type="number" value="1000" class="w-full input-dark p-3 rounded-xl font-bold mono text-lg">
+                    </div>
+                    <button onclick="processTrade('buy')" class="flex-1 btn-purple py-4 rounded-xl font-black text-lg uppercase italic tracking-tighter">Market Buy</button>
+                    <button onclick="processTrade('sell')" class="flex-1 border border-zinc-700 hover:bg-zinc-800 py-4 rounded-xl font-black text-lg uppercase italic tracking-tighter">Market Sell</button>
+                </div>
+            </div>
+        </section>
+
+        <aside class="w-96 flex flex-col gap-2 shrink-0">
+            <div class="panel p-1 flex shrink-0">
+                <button onclick="switchRightTab('portfolio')" id="tab-port-btn" class="flex-1 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg bg-zinc-800">Portfolio</button>
+                <button onclick="switchRightTab('social')" id="tab-soc-btn" class="flex-1 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg text-zinc-500">Holders & Chat</button>
+            </div>
+
+            <div id="tab-portfolio" class="panel flex-1 flex flex-col overflow-hidden">
+                <div class="p-4 border-b border-zinc-800">
+                    <h3 class="font-bold text-xs uppercase text-zinc-500 tracking-widest">Positions</h3>
+                </div>
+                <div id="open-positions" class="flex-1 overflow-y-auto custom-scroll p-4 space-y-3">
+                    <p class="text-zinc-600 italic text-center py-10 text-xs font-bold">No open positions...</p>
+                </div>
+                <div class="p-4 border-t border-zinc-800 bg-zinc-900/20">
+                    <h3 class="font-bold text-xs uppercase text-zinc-500 tracking-widest mb-3">Recent PnL</h3>
+                    <div id="closed-history" class="space-y-2">
+                        </div>
+                </div>
+            </div>
+
+            <div id="tab-social" class="panel flex-1 hidden flex flex-col overflow-hidden">
+                <div class="p-4 border-b border-zinc-800">
+                    <h3 class="font-bold text-xs uppercase text-zinc-500 tracking-widest">Top Holders</h3>
+                </div>
+                <div id="holders-list" class="h-48 overflow-y-auto custom-scroll border-b border-zinc-800 p-2">
+                    </div>
+                <div class="p-4 border-b border-zinc-800">
+                    <h3 class="font-bold text-xs uppercase text-zinc-500 tracking-widest">Live Community</h3>
+                </div>
+                <div id="chat-box" class="flex-1 overflow-y-auto custom-scroll p-4 space-y-3 bg-black/40 text-[11px]">
+                    </div>
+            </div>
+        </aside>
+
+    </main>
+
+    <script>
+        // --- CONSTANTS & CONFIG ---
+        const BLUE_CHIPS = ["Bitcoin", "Ethereum", "Solana", "BNB", "XRP", "Cardano", "Polkadot", "Avalanche", "Chainlink", "Polygon", "Litecoin", "Algorand", "Cosmos", "Monero", "Stellar"];
+        const MEME_PFX = ["PEPE", "DOGE", "BONK", "WIF", "CHILL", "GOAT", "FLOKI", "BOME", "POPCAT", "MOG", "MOODENG", "TURBO", "WOJAK", "SPX"];
+        const MEME_SFX = ["GUY", "INU", "CAP", "BULL", "ROCKET", "DAO", "X", "ZILLA", "COIN", "AI", "FART", "PUMP", "MOON", "RUG"];
+        const CHAT_USERS = ["WhaleHunter", "Degenerate_X", "DiamondHands", "RugProtector", "MoonBoy88", "SatoshiFan", "Ape_Master", "ShortSeller"];
+
+        // --- GLOBAL STATE ---
+        let balance = 10000;
+        let coins = [];
+        let activeCoin = null;
+        let portfolio = {};
+        let closedHistory = [];
+        let chartType = 'line'; // 'line' or 'candles'
+        let currentRightTab = 'portfolio';
 
         // --- ENGINES ---
         function init() {
             lucide.createIcons();
-            generateInitialMarket();
-            startPriceEngine();
-            renderMarket();
+            generateMarket();
+            selectCoin(coins[0]);
+            startMarketCycle();
+            window.addEventListener('resize', () => renderChart());
         }
 
-        function generateInitialMarket() {
-            // 15 Blue Chips
-            BLUE_CHIPS.forEach((name, i) => {
-                coins.push(createCoin(name, false, 20000 + (Math.random() * 40000)));
-            });
-            // 40 Memes
-            for(let i=0; i<40; i++) {
-                const name = MEME_PREFIX[Math.floor(Math.random()*MEME_PREFIX.length)] + "_" + MEME_SUFFIX[Math.floor(Math.random()*MEME_SUFFIX.length)];
-                coins.push(createCoin(name, true, 0.0001 + (Math.random() * 0.005)));
+        function generateMarket() {
+            // 15 Blue Chips (Safe)
+            BLUE_CHIPS.forEach(name => coins.push(createCoin(name, false)));
+            // 40+ Memes (Risky)
+            for(let i=0; i<45; i++) {
+                const name = MEME_PFX[Math.floor(Math.random()*MEME_PFX.length)] + "_" + MEME_SFX[Math.floor(Math.random()*MEME_SFX.length)];
+                coins.push(createCoin(name, true));
             }
+            renderMarketList();
         }
 
-        function createCoin(name, isMeme, startPrice) {
-            const isAntiRug = isMeme && Math.random() < 0.4; // 40% Chance
+        function createCoin(name, isMeme) {
+            const isAntiRug = isMeme && Math.random() > 0.6;
+            const basePrice = isMeme ? (0.0001 + Math.random() * 0.005) : (10 + Math.random() * 60000);
+            
+            // Gerar holders simulados
+            const holders = Array.from({length: 10}, () => ({
+                addr: '0x' + Math.random().toString(16).substr(2, 6) + '...' + Math.random().toString(16).substr(2, 4),
+                percent: (Math.random() * 10).toFixed(2)
+            })).sort((a,b) => b.percent - a.percent);
+
+            // Gerar histórico inicial (Velas)
+            let history = [];
+            let lastPrice = basePrice;
+            for(let i=0; i<100; i++) {
+                let open = lastPrice;
+                let close = open * (0.95 + Math.random() * 0.1);
+                history.push({ open, high: Math.max(open, close)*1.02, low: Math.min(open, close)*0.98, close, time: i });
+                lastPrice = close;
+            }
+
             return {
                 id: Math.random().toString(36).substr(2, 9),
                 name: name.toUpperCase(),
-                price: startPrice,
+                price: lastPrice,
                 isMeme,
                 isAntiRug,
                 isRugged: false,
-                riskLevel: (isMeme && !isAntiRug) ? 70 : 0,
+                mcap: isMeme ? (50 + Math.random() * 200) : (1000 + Math.random() * 800000),
                 createdAt: Date.now(),
-                mcap: isMeme ? (10 + Math.random() * 500) : (10000 + Math.random() * 900000),
-                history: Array.from({length: 40}, () => startPrice * (0.95 + Math.random() * 0.1)),
-                img: `https://api.dicebear.com/7.x/identicon/svg?seed=${name}&backgroundColor=0D0D0D`,
-                trades: [] // Para desenhar pontos no gráfico
+                holders,
+                history,
+                img: `https://api.dicebear.com/7.x/identicon/svg?seed=${name}&backgroundColor=0d0d0d`
             };
         }
 
-        // --- MARKET ENGINE (TICK EVERY 2s) ---
-        function startPriceEngine() {
+        // --- MARKET LOOP ---
+        function startMarketCycle() {
             setInterval(() => {
                 const now = Date.now();
                 coins.forEach(c => {
                     if(c.isRugged) {
-                        c.price *= 0.5; // Morre rápido
-                        c.history.push(c.price);
-                        c.history.shift();
+                        c.price *= 0.8;
+                        updateCoinHistory(c, c.price);
                         return;
                     }
 
-                    // Volatilidade
-                    let vol = c.isMeme ? (c.isAntiRug ? 0.15 : 0.35) : 0.015;
-                    let trend = (Math.random() - 0.48); // Ligeira tendência de subida
+                    let vol = c.isMeme ? (c.isAntiRug ? 0.08 : 0.2) : 0.005;
+                    let trend = (Math.random() - 0.49); // Ligeira subida
                     c.price *= (1 + (trend * vol));
-
-                    // Lógica Rug Pull
-                    const ageInMs = now - c.createdAt;
-                    if(c.isMeme && !c.isAntiRug && ageInMs > 300000) { // +5 minutos
-                        const rugChance = (ageInMs - 300000) / 10000000; // Aumenta com o tempo
-                        if(Math.random() < rugChance) {
-                            triggerRug(c);
+                    
+                    // Rug Pull logic: após 5 min, se for meme inseguro
+                    if(c.isMeme && !c.isAntiRug && (now - c.createdAt) > 300000) {
+                        if(Math.random() < 0.008) {
+                            c.isRugged = true;
+                            c.price *= 0.05;
+                            addChatMessage(c.name, "THE DEV JUST RUGGED! 💀💀💀", "rug");
                         }
                     }
-
-                    // Atualiza History para o Gráfico
-                    c.history.push(c.price);
-                    c.history.shift();
                     
-                    // Update Market Cap
-                    c.mcap = c.price * (c.isMeme ? 50000000 : 1000000000) / 1000;
+                    updateCoinHistory(c, c.price);
+                    c.mcap = (c.price * (c.isMeme ? 1000000 : 1000000000)) / 1000000;
                 });
 
-                if(activeCoin) updateTradeModal();
-                renderMarket();
-                renderPortfolio();
-                updateHeaderBalance();
+                if(activeCoin) renderChart();
+                updateUI();
+                if(Math.random() > 0.8) simulateSocialActivity();
             }, 2000);
         }
 
-        function triggerRug(coin) {
-            coin.isRugged = true;
-            coin.price *= 0.1;
-            console.log(`💀 RUG PULL: ${coin.name}`);
-            if(portfolio[coin.id]) {
-                document.body.classList.add('rug-shake');
-                setTimeout(() => document.body.classList.remove('rug-shake'), 500);
+        function updateCoinHistory(coin, currentPrice) {
+            let last = coin.history[coin.history.length - 1];
+            // Se o tempo não mudou, atualiza a mesma vela
+            last.close = currentPrice;
+            last.high = Math.max(last.high, currentPrice);
+            last.low = Math.min(last.low, currentPrice);
+            
+            // A cada X ticks poderíamos criar nova vela, mas para simulação live
+            // vamos apenas manter a última a mexer e empurrar uma nova raramente
+            if(Math.random() > 0.95) {
+                coin.history.shift();
+                coin.history.push({ open: currentPrice, high: currentPrice, low: currentPrice, close: currentPrice, time: last.time + 1 });
             }
         }
 
-        // --- GRAPHICS ENGINE (SVG SMOOTH PATH) ---
-        function drawChart() {
-            if(!activeCoin) return;
-            const svg = document.getElementById('svg-chart');
-            const pLine = document.getElementById('path-line');
-            const pArea = document.getElementById('path-area');
-            const markers = document.getElementById('chart-markers');
+        // --- CHART DRAWING (PRO CANVAS) ---
+        function renderChart() {
+            const canvas = document.getElementById('main-chart');
+            const ctx = canvas.getContext('2d');
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
             
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+
+            const w = rect.width;
+            const h = rect.height;
             const data = activeCoin.history;
-            const w = 400;
-            const h = 200;
-            const min = Math.min(...data) * 0.98;
-            const max = Math.max(...data) * 1.02;
+            const min = Math.min(...data.map(d => d.low)) * 0.99;
+            const max = Math.max(...data.map(d => d.high)) * 1.01;
+            const range = max - min;
 
-            const points = data.map((v, i) => ({
-                x: (i / (data.length - 1)) * w,
-                y: h - ((v - min) / (max - min)) * h
-            }));
+            ctx.clearRect(0, 0, w, h);
 
-            // Algoritmo de Bézier para curva suave
-            let d = `M ${points[0].x} ${points[0].y}`;
-            for (let i = 0; i < points.length - 1; i++) {
-                const p0 = points[i];
-                const p1 = points[i+1];
-                const cp1x = p0.x + (p1.x - p0.x) / 2;
-                d += ` C ${cp1x} ${p0.y}, ${cp1x} ${p1.y}, ${p1.x} ${p1.y}`;
+            // Grid Lines
+            ctx.strokeStyle = '#1f1f23';
+            ctx.lineWidth = 1;
+            for(let i=0; i<5; i++) {
+                let y = (h / 5) * i;
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
             }
 
-            pLine.setAttribute('d', d);
-            pArea.setAttribute('d', d + ` L ${w} ${h} L 0 ${h} Z`);
-
-            // Desenhar Pontos de Compra/Venda
-            markers.innerHTML = '';
-            activeCoin.trades.forEach(t => {
-                // Posicionamento simplificado no gráfico live
-                const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-                circle.setAttribute("cx", w - 10); // Ponto mais recente
-                circle.setAttribute("cy", points[points.length-1].y);
-                circle.setAttribute("r", "6");
-                circle.setAttribute("class", t === 'buy' ? 'buy-dot' : 'sell-dot');
-                markers.appendChild(circle);
-            });
-            
-            // Cor da linha baseada no preço
-            pLine.setAttribute('stroke', activeCoin.isRugged ? 'var(--rug-red)' : 'var(--neon-green)');
-        }
-
-        // --- UI CORE ---
-        function renderMarket() {
-            const list = document.getElementById('market-list');
-            const scrollPos = list.scrollTop;
-            list.innerHTML = '';
-
-            coins.forEach(c => {
-                const div = document.createElement('div');
-                div.className = "flex justify-between items-center cursor-pointer active:scale-95 transition-all";
-                div.onclick = () => openTrade(c);
-                
-                const change = ((c.price / c.history[0]) - 1) * 100;
-                
-                div.innerHTML = `
-                    <div class="flex items-center gap-4">
-                        <img src="${c.img}" class="w-12 h-12 rounded-2xl border border-white/5 bg-zinc-900 shadow-lg">
-                        <div>
-                            <p class="font-black italic tracking-tighter uppercase text-sm">${c.name} ${c.isAntiRug ? '🛡️' : ''}</p>
-                            <p class="text-[10px] text-zinc-600 font-bold uppercase tracking-widest italic">$${c.mcap.toFixed(1)}M MCAP</p>
-                        </div>
-                    </div>
-                    <div class="text-right">
-                        <p class="font-black italic mono text-sm ${c.isRugged ? 'text-red-600 line-through' : ''}">$${c.price < 1 ? c.price.toFixed(6) : c.price.toLocaleString()}</p>
-                        <p class="${change >= 0 ? 'text-green-500' : 'text-red-500'} text-[10px] font-black italic uppercase">${change >= 0 ? '▲' : '▼'} ${Math.abs(change).toFixed(2)}%</p>
-                    </div>
-                `;
-                list.appendChild(div);
-            });
-            list.scrollTop = scrollPos;
-        }
-
-        function openTrade(coin) {
-            activeCoin = coin;
-            document.getElementById('m-coin-symbol').innerText = coin.name;
-            document.getElementById('m-coin-icon').innerHTML = `<img src="${coin.img}" class="w-full h-full">`;
-            document.getElementById('m-coin-status').innerText = coin.isRugged ? 'Rugged (Dead)' : 'Live Market';
-            document.getElementById('trade-modal').classList.remove('hidden');
-            updateTradeModal();
-            drawChart();
-        }
-
-        function closeTrade() {
-            document.getElementById('trade-modal').classList.add('hidden');
-            activeCoin = null;
-        }
-
-        function updateTradeModal() {
-            if(!activeCoin) return;
-            document.getElementById('m-coin-mcap').innerText = `$${activeCoin.mcap.toFixed(2)}M`;
-            
-            const pos = portfolio[activeCoin.id];
-            if(pos) {
-                const currentVal = pos.amount * activeCoin.price;
-                const pnl = currentVal - pos.cost;
-                const pnlPerc = (pnl / pos.cost) * 100;
-                
-                document.getElementById('m-user-pos').innerText = `$${currentVal.toFixed(2)}`;
-                document.getElementById('m-user-tokens').innerText = `${pos.amount.toFixed(2)} TOKENS`;
-                document.getElementById('m-user-pnl').innerText = `${pnl >= 0 ? '+' : '-'}$${Math.abs(pnl).toFixed(2)}`;
-                document.getElementById('m-user-pnl').className = `text-xl font-black italic ${pnl >= 0 ? 'text-green-500' : 'text-red-500'}`;
-                document.getElementById('m-user-pnl-perc').innerText = `${pnlPerc.toFixed(2)}%`;
+            if(chartType === 'line') {
+                // Line Style
+                ctx.strokeStyle = activeCoin.isRugged ? '#FF3131' : '#00FF41';
+                ctx.lineWidth = 3;
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = ctx.strokeStyle;
+                ctx.beginPath();
+                data.forEach((d, i) => {
+                    let x = (w / (data.length - 1)) * i;
+                    let y = h - ((d.close - min) / range) * h;
+                    if(i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                });
+                ctx.stroke();
+                ctx.shadowBlur = 0;
             } else {
-                document.getElementById('m-user-pos').innerText = `$0.00`;
-                document.getElementById('m-user-tokens').innerText = `0.00 TOKENS`;
-                document.getElementById('m-user-pnl').innerText = `$0.00`;
-                document.getElementById('m-user-pnl').className = `text-xl font-black italic text-zinc-600`;
-                document.getElementById('m-user-pnl-perc').innerText = `0.00%`;
+                // Candle Style
+                const candleW = (w / data.length) * 0.8;
+                data.forEach((d, i) => {
+                    let x = (w / data.length) * i;
+                    let yOpen = h - ((d.open - min) / range) * h;
+                    let yClose = h - ((d.close - min) / range) * h;
+                    let yHigh = h - ((d.high - min) / range) * h;
+                    let yLow = h - ((d.low - min) / range) * h;
+                    
+                    ctx.strokeStyle = d.close >= d.open ? '#00FF41' : '#FF3131';
+                    ctx.fillStyle = ctx.strokeStyle;
+                    
+                    // Wick
+                    ctx.beginPath(); ctx.moveTo(x + candleW/2, yHigh); ctx.lineTo(x + candleW/2, yLow); ctx.stroke();
+                    // Body
+                    ctx.fillRect(x, Math.min(yOpen, yClose), candleW, Math.max(Math.abs(yOpen - yClose), 1));
+                });
             }
-            drawChart();
         }
 
-        function executeTrade(type) {
-            const amount = parseFloat(document.getElementById('trade-input').value);
+        // --- TRADING LOGIC ---
+        function processTrade(type) {
+            const amt = parseFloat(document.getElementById('trade-amount').value);
             if(type === 'buy') {
-                if(balance >= amount) {
-                    balance -= amount;
-                    if(!portfolio[activeCoin.id]) portfolio[activeCoin.id] = { amount: 0, cost: 0 };
-                    portfolio[activeCoin.id].amount += amount / activeCoin.price;
-                    portfolio[activeCoin.id].cost += amount;
-                    activeCoin.trades.push('buy');
-                    showToast(`Bought ${activeCoin.name}!`, 'success');
-                } else {
-                    showToast("Insufficient Balance!", "error");
+                if(balance >= amt) {
+                    balance -= amt;
+                    if(!portfolio[activeCoin.id]) portfolio[activeCoin.id] = { amount: 0, cost: 0, entry: activeCoin.price };
+                    portfolio[activeCoin.id].amount += amt / activeCoin.price;
+                    portfolio[activeCoin.id].cost += amt;
+                    addChatMessage(activeCoin.name, `Just bought $${amt} worth! To the moon! 🚀`, "buy");
                 }
             } else {
                 const pos = portfolio[activeCoin.id];
                 if(pos) {
-                    const finalValue = pos.amount * activeCoin.price;
-                    balance += finalValue;
-                    history.unshift({ name: activeCoin.name, profit: finalValue - pos.cost, date: new Date().toLocaleTimeString() });
+                    const val = pos.amount * activeCoin.price;
+                    const pnl = val - pos.cost;
+                    balance += val;
+                    closedHistory.unshift({ name: activeCoin.name, pnl, time: new Date().toLocaleTimeString() });
                     delete portfolio[activeCoin.id];
-                    activeCoin.trades.push('sell');
-                    showToast(`Sold ${activeCoin.name}!`, 'info');
+                    addChatMessage(activeCoin.name, `Sold everything. ${pnl >= 0 ? 'Profit secured! 💰' : 'Taking the loss... 📉'}`, "sell");
                 }
             }
-            updateTradeModal();
-            renderPortfolio();
+            updateUI();
         }
 
-        function renderPortfolio() {
-            const list = document.getElementById('portfolio-list');
+        // --- UI SYNC ---
+        function updateUI() {
+            document.getElementById('total-balance').innerText = `$${balance.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+            
+            if(activeCoin) {
+                const priceEl = document.getElementById('live-price');
+                const changeEl = document.getElementById('live-change');
+                const price = activeCoin.price.toFixed(activeCoin.price < 1 ? 6 : 2);
+                priceEl.innerText = `$${price}`;
+                priceEl.className = `text-4xl font-black mono italic ${activeCoin.isRugged ? 'text-red-500' : 'text-green-400'}`;
+                
+                const change = ((activeCoin.price / activeCoin.history[0].open) - 1) * 100;
+                changeEl.innerText = `${change >= 0 ? '▲' : '▼'} ${Math.abs(change).toFixed(2)}%`;
+                changeEl.className = `text-xs font-bold ${change >= 0 ? 'text-green-500' : 'text-red-500'}`;
+                
+                document.getElementById('active-mcap').innerText = `MCAP: $${activeCoin.mcap.toFixed(2)}M`;
+            }
+
+            renderPortfolio();
+            renderMarketList();
+        }
+
+        function renderMarketList() {
+            const list = document.getElementById('market-list');
+            const search = ""; // Poderia adicionar input de busca
+            
+            // Guardar posição do scroll
+            const scroll = list.scrollTop;
             list.innerHTML = '';
             
-            Object.keys(portfolio).forEach(id => {
-                const coin = coins.find(c => c.id === id);
-                const pos = portfolio[id];
-                const currentVal = pos.amount * coin.price;
-                const pnlPerc = ((currentVal / pos.cost) - 1) * 100;
-
+            coins.forEach(c => {
                 const div = document.createElement('div');
-                div.className = "p-6 glass rounded-[32px] flex justify-between items-center";
+                div.className = `p-3 rounded-xl flex justify-between items-center cursor-pointer transition ${activeCoin?.id === c.id ? 'bg-purple-600/20 border border-purple-600/30' : 'hover:bg-white/5'}`;
+                div.onclick = () => selectCoin(c);
+                
+                const change = ((c.price / c.history[0].open) - 1) * 100;
+
                 div.innerHTML = `
-                    <div class="flex items-center gap-4">
-                        <img src="${coin.img}" class="w-10 h-10 rounded-xl">
+                    <div class="flex items-center gap-3">
+                        <img src="${c.img}" class="w-8 h-8 rounded-lg bg-black">
                         <div>
-                            <p class="font-black italic text-sm">${coin.name}</p>
-                            <p class="text-[10px] text-zinc-500 font-bold uppercase tracking-widest italic">${pos.amount.toFixed(0)} Tokens</p>
+                            <p class="text-xs font-bold">${c.name} ${c.isAntiRug ? '✔️' : ''}</p>
+                            <p class="text-[9px] text-zinc-500 font-bold uppercase">${c.isMeme ? 'Meme' : 'Safe'}</p>
                         </div>
                     </div>
                     <div class="text-right">
-                        <p class="font-black italic mono text-sm">$${currentVal.toFixed(2)}</p>
-                        <p class="${pnlPerc >= 0 ? 'text-green-500' : 'text-red-500'} text-[10px] font-black italic">${pnlPerc >= 0 ? '▲' : '▼'} ${Math.abs(pnlPerc).toFixed(2)}%</p>
+                        <p class="text-[11px] mono font-bold ${c.isRugged ? 'text-red-600 line-through' : ''}">$${c.price.toFixed(c.price < 1 ? 5 : 2)}</p>
+                        <p class="text-[9px] font-bold ${change >=0 ? 'text-green-500' : 'text-red-500'}">${change >=0 ? '+' : ''}${change.toFixed(2)}%</p>
                     </div>
                 `;
                 list.appendChild(div);
             });
+            list.scrollTop = scroll;
+        }
 
-            const histList = document.getElementById('history-list');
-            histList.innerHTML = '';
-            history.slice(0, 5).forEach(h => {
-                histList.innerHTML += `
-                    <div class="flex justify-between text-xs px-2">
-                        <span class="font-bold">${h.name}</span>
-                        <span class="mono italic ${h.profit >= 0 ? 'text-green-500' : 'text-red-500'}">${h.profit >= 0 ? '+' : ''}${h.profit.toFixed(2)}</span>
+        function renderPortfolio() {
+            const container = document.getElementById('open-positions');
+            container.innerHTML = '';
+            
+            const entries = Object.keys(portfolio);
+            if(entries.length === 0) {
+                container.innerHTML = '<p class="text-zinc-600 italic text-center py-10 text-xs font-bold">No open positions...</p>';
+            }
+
+            entries.forEach(id => {
+                const coin = coins.find(c => c.id === id);
+                const pos = portfolio[id];
+                const currentVal = pos.amount * coin.price;
+                const pnl = currentVal - pos.cost;
+                const pnlPerc = (pnl / pos.cost) * 100;
+
+                container.innerHTML += `
+                    <div class="p-3 bg-zinc-900/50 rounded-xl border border-white/5">
+                        <div class="flex justify-between mb-1">
+                            <span class="text-xs font-bold">${coin.name}</span>
+                            <span class="text-[10px] mono text-zinc-500">In: $${pos.entry.toFixed(4)}</span>
+                        </div>
+                        <div class="flex justify-between items-end">
+                            <div>
+                                <p class="text-sm font-black mono">$${currentVal.toFixed(2)}</p>
+                                <p class="text-[9px] text-zinc-500 uppercase font-bold">${pos.amount.toFixed(2)} tokens</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-xs font-black ${pnl >= 0 ? 'text-green-400' : 'text-red-500'}">${pnl >= 0 ? '+' : ''}${pnlPerc.toFixed(2)}%</p>
+                                <p class="text-[10px] font-bold text-zinc-500 italic">$${pnl.toFixed(2)}</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            const histContainer = document.getElementById('closed-history');
+            histContainer.innerHTML = '';
+            closedHistory.slice(0, 5).forEach(h => {
+                histContainer.innerHTML += `
+                    <div class="flex justify-between text-[10px] font-bold border-b border-zinc-800 pb-1">
+                        <span class="text-zinc-400">${h.name}</span>
+                        <span class="${h.pnl >= 0 ? 'text-green-500' : 'text-red-500'}">${h.pnl >= 0 ? '+' : ''}$${h.pnl.toFixed(2)}</span>
                     </div>
                 `;
             });
         }
 
-        function updateHeaderBalance() {
-            document.getElementById('h-balance').innerText = `$${balance.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
-            document.getElementById('cash-balance').innerText = `$${balance.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
-        }
-
-        function switchTab(tabId) {
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('tab-active'));
-            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('nav-active'));
+        function selectCoin(coin) {
+            activeCoin = coin;
+            document.getElementById('active-name').innerText = coin.name;
+            document.getElementById('active-icon').innerHTML = `<img src="${coin.img}" class="w-full h-full">`;
+            document.getElementById('verified-badge').style.display = coin.isVerified ? 'inline-block' : 'none';
             
-            document.getElementById(`tab-${tabId}`).classList.add('tab-active');
-            document.getElementById(`nav-${tabId}`).classList.add('nav-active');
+            // Reset Chat and Holders
+            const hList = document.getElementById('holders-list');
+            hList.innerHTML = '';
+            coin.holders.forEach((h, i) => {
+                hList.innerHTML += `
+                    <div class="flex justify-between text-[10px] p-2 hover:bg-white/5 rounded">
+                        <span class="text-zinc-500">#${i+1} ${h.addr}</span>
+                        <span class="font-bold text-purple-400">${h.percent}%</span>
+                    </div>
+                `;
+            });
+
+            document.getElementById('chat-box').innerHTML = `<p class="text-zinc-600 italic">Welcome to $${coin.name} community. Keep it civil!</p>`;
+            
+            renderChart();
+            updateUI();
         }
 
-        function showToast(msg, type) {
-            const t = document.createElement('div');
-            t.className = `fixed top-10 left-1/2 -translate-x-1/2 px-8 py-3 glass rounded-full z-[200] border-l-4 font-black italic text-xs uppercase tracking-tighter shadow-2xl transition-all duration-300 translate-y-[-100px] ${type === 'success' ? 'border-green-500' : type === 'error' ? 'border-red-500' : 'border-purple-500'}`;
-            t.innerText = msg;
-            document.body.appendChild(t);
-            setTimeout(() => t.classList.remove('translate-y-[-100px]'), 100);
-            setTimeout(() => {
-                t.classList.add('translate-y-[-100px]');
-                setTimeout(() => t.remove(), 400);
-            }, 2500);
+        // --- SOCIAL SIMULATOR ---
+        function simulateSocialActivity() {
+            if(!activeCoin) return;
+            const user = CHAT_USERS[Math.floor(Math.random()*CHAT_USERS.length)];
+            const change = ((activeCoin.price / activeCoin.history[0].open) - 1) * 100;
+            
+            let msg = "";
+            if(activeCoin.isRugged) {
+                msg = "SCAM! I LOST EVERYTHING! 😭😭😭";
+            } else if(change > 20) {
+                msg = "SEND IT! TO THE MOOOON! 🚀🚀🚀";
+            } else if(change < -20) {
+                msg = "Paper hands selling... I'm buying the dip! 💎";
+            } else {
+                msg = "Is this the next 100x gem? MC is still low.";
+            }
+            
+            addChatMessage(user, msg);
+        }
+
+        function addChatMessage(user, msg, type) {
+            const chat = document.getElementById('chat-box');
+            const div = document.createElement('div');
+            div.className = "space-y-0.5 animate-in slide-in-from-bottom-1 fade-in";
+            div.innerHTML = `
+                <p class="font-bold ${type === 'rug' ? 'text-red-500' : 'text-purple-400'}">${user}: <span class="text-zinc-300 font-normal">${msg}</span></p>
+            `;
+            chat.appendChild(div);
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        // --- TABS & CONTROLS ---
+        function setChartType(t) {
+            chartType = t;
+            document.getElementById('btn-line').classList.toggle('active', t === 'line');
+            document.getElementById('btn-candles').classList.toggle('active', t === 'candles');
+            renderChart();
+        }
+
+        function switchRightTab(tab) {
+            currentRightTab = tab;
+            document.getElementById('tab-portfolio').classList.toggle('hidden', tab !== 'portfolio');
+            document.getElementById('tab-social').classList.toggle('hidden', tab !== 'social');
+            document.getElementById('tab-port-btn').className = `flex-1 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg ${tab === 'portfolio' ? 'bg-zinc-800' : 'text-zinc-500'}`;
+            document.getElementById('tab-soc-btn').className = `flex-1 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg ${tab === 'social' ? 'bg-zinc-800' : 'text-zinc-500'}`;
         }
 
         window.onload = init;
