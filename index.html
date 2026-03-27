@@ -1,265 +1,252 @@
 <!DOCTYPE html>
 <html lang="pt">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Amigo Duel - Competição entre Amigos</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
-    body { font-family: 'Inter', system-ui, sans-serif; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RugPump | Simulador de FOMO</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+    <style>
+        body { background-color: #09090b; color: #fafafa; font-family: 'Inter', sans-serif; }
+        .neon-green { color: #22c55e; text-shadow: 0 0 10px rgba(34, 197, 94, 0.5); }
+        .neon-red { color: #ef4444; text-shadow: 0 0 10px rgba(239, 68, 68, 0.5); }
+        .glass { background: rgba(24, 24, 27, 0.8); backdrop-filter: blur(10px); border: 1px solid #3f3f46; }
+        .fomo-pulse { animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+    </style>
 </head>
-<body class="bg-slate-50 text-slate-900 min-h-screen">
-
-  <!-- HEADER MODERNO -->
-  <div class="bg-white border-b shadow-sm sticky top-0 z-50">
-    <div class="max-w-6xl mx-auto px-6 py-5 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="text-4xl">🏆</div>
-        <h1 class="text-3xl font-semibold tracking-tight">Amigo Duel</h1>
-      </div>
-      
-      <div class="flex items-center gap-8">
-        <div class="flex items-center gap-3">
-          <div class="bg-blue-600 text-white px-5 py-2 rounded-2xl font-semibold text-lg" id="p1-name-display">JOGADOR 1</div>
-          <div class="text-4xl font-semibold text-blue-600" id="p1-score">0</div>
+<body class="p-4">
+    <header class="flex justify-between items-center mb-6 glass p-4 rounded-2xl">
+        <h1 class="text-3xl font-black tracking-tighter italic neon-green">RUGPUMP <span class="text-white text-sm not-italic font-light ml-2">v1.0 Simulator</span></h1>
+        <div class="text-right">
+            <p class="text-gray-400 text-xs uppercase tracking-widest">Saldo Disponível</p>
+            <p id="balance" class="text-2xl font-bold">$10,000.00</p>
         </div>
-        
-        <div class="text-2xl font-light text-slate-300">VS</div>
-        
-        <div class="flex items-center gap-3">
-          <div class="text-4xl font-semibold text-violet-600" id="p2-score">0</div>
-          <div class="bg-violet-600 text-white px-5 py-2 rounded-2xl font-semibold text-lg" id="p2-name-display">JOGADOR 2</div>
-        </div>
-      </div>
+    </header>
 
-      <button onclick="editPlayers()" 
-              class="px-6 py-3 bg-slate-100 hover:bg-slate-200 rounded-2xl text-sm font-medium transition">
-        ✏️ EDITAR NOMES
-      </button>
+    <div class="grid grid-cols-12 gap-6">
+        <div class="col-span-12 lg:col-span-3 space-y-4">
+            <div class="glass p-4 rounded-xl">
+                <button onclick="createMemecoin()" class="w-full bg-green-600 hover:bg-green-500 py-3 rounded-lg font-bold transition-all mb-4">
+                    + LANÇAR NOVA MEMECOIN
+                </button>
+                <h2 class="text-sm font-semibold mb-3 text-gray-500 uppercase">Mercado Live</h2>
+                <div id="coin-list" class="space-y-2 overflow-y-auto max-h-[500px] pr-2">
+                    </div>
+            </div>
+        </div>
+
+        <div class="col-span-12 lg:col-span-6 space-y-6">
+            <div class="glass p-4 rounded-xl relative">
+                <div class="flex justify-between items-center mb-4">
+                    <div>
+                        <h2 id="active-coin-name" class="text-2xl font-bold">---</h2>
+                        <div id="danger-badge" class="hidden bg-red-900 text-red-200 text-[10px] px-2 py-1 rounded inline-block font-bold">ALTO RISCO (70%)</div>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button class="px-3 py-1 bg-zinc-800 rounded text-xs hover:bg-zinc-700">LIVE</button>
+                        <button class="px-3 py-1 bg-zinc-800 rounded text-xs hover:bg-zinc-700">1H</button>
+                        <button class="px-3 py-1 bg-zinc-800 rounded text-xs hover:bg-zinc-700">4H</button>
+                    </div>
+                </div>
+                <div id="chart-container" class="w-full h-[400px]"></div>
+                
+                <div class="grid grid-cols-2 gap-4 mt-6">
+                    <button onclick="buyAction()" class="bg-zinc-100 text-black py-4 rounded-xl font-black text-lg hover:scale-[1.02] active:scale-95 transition-all">COMPRAR</button>
+                    <button onclick="rugPullAction()" class="bg-red-600 text-white py-4 rounded-xl font-black text-lg hover:bg-red-500 fomo-pulse">VENDER TUDO (RUG)</button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-4">
+                <div class="glass p-4 rounded-xl text-center">
+                    <p class="text-xs text-gray-500">Market Cap</p>
+                    <p id="stat-mcap" class="font-bold text-lg">$0</p>
+                </div>
+                <div class="glass p-4 rounded-xl text-center">
+                    <p class="text-xs text-gray-500">Volume (24h)</p>
+                    <p id="stat-vol" class="font-bold text-lg">$0</p>
+                </div>
+                <div class="glass p-4 rounded-xl text-center">
+                    <p class="text-xs text-gray-500">Holders</p>
+                    <p id="stat-holders" class="font-bold text-lg">0</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-span-12 lg:col-span-3 space-y-4">
+            <div class="glass p-4 rounded-xl">
+                <h3 class="font-bold mb-4 border-b border-zinc-700 pb-2">Meu Portfolio</h3>
+                <div id="portfolio-list" class="text-sm space-y-3">
+                    <p class="text-gray-500 italic">Sem trades abertas...</p>
+                </div>
+            </div>
+            <div class="glass p-4 rounded-xl">
+                <h3 class="font-bold mb-4 border-b border-zinc-700 pb-2">Feed Global (FOMO)</h3>
+                <div id="global-feed" class="text-[10px] space-y-2 opacity-70">
+                    <p>🟢 Baleia comprou $4,500 de SOL</p>
+                    <p>🔴 User "Xpto" levou RugPull em PEPE</p>
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
 
-  <!-- LOBBY -->
-  <div id="lobby" class="max-w-6xl mx-auto px-6 py-10">
-    <h2 class="text-center text-2xl font-medium text-slate-500 mb-10">Escolhe o jogo para competir</h2>
-    
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+    <script>
+        // --- CONFIGURAÇÃO INICIAL ---
+        let balance = 10000;
+        let activeCoin = null;
+        let portfolio = {};
+        let coins = [
+            { id: 'btc', name: 'Bitcoin', price: 65200, isMeme: false, risk: 0, mcap: '1.2T', vol: '35B', holders: '50M' },
+            { id: 'eth', name: 'Ethereum', price: 3450, isMeme: false, risk: 0, mcap: '400B', vol: '15B', holders: '120M' },
+            { id: 'sol', name: 'Solana', price: 145, isMeme: false, risk: 0, mcap: '65B', vol: '4B', holders: '12M' },
+            { id: 'rug1', name: 'MOON_INU', price: 0.0004, isMeme: true, risk: 70, mcap: '150K', vol: '20K', holders: '450', createdAt: Date.now() }
+        ];
 
-      <!-- Jogo 1 -->
-      <div onclick="startGame(1)" class="bg-white border border-slate-200 rounded-3xl p-8 hover:shadow-xl hover:border-slate-300 transition cursor-pointer">
-        <div class="text-7xl mb-6">⚽</div>
-        <h3 class="text-2xl font-semibold mb-2">Duelo de Penaltis</h3>
-        <p class="text-slate-500">5 penaltis • 25% de chance de defesa</p>
-      </div>
+        // --- INICIALIZAÇÃO DO GRÁFICO (TradingView) ---
+        const chart = LightweightCharts.createChart(document.getElementById('chart-container'), {
+            layout: { backgroundColor: 'transparent', textColor: '#d1d5db' },
+            grid: { vertLines: { color: '#27272a' }, horzLines: { color: '#27272a' } },
+            crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+            rightPriceScale: { borderColor: '#3f3f46' },
+            timeScale: { borderColor: '#3f3f46' },
+        });
 
-      <!-- Jogo 2 -->
-      <div onclick="startGame(2)" class="bg-white border border-slate-200 rounded-3xl p-8 hover:shadow-xl hover:border-slate-300 transition cursor-pointer">
-        <div class="text-7xl mb-6">⭕</div>
-        <h3 class="text-2xl font-semibold mb-2">Jogo da Velha</h3>
-        <p class="text-slate-500">Clássico 3x3</p>
-      </div>
+        const candleSeries = chart.addCandlestickSeries({
+            upColor: '#22c55e', downColor: '#ef4444', borderVisible: false, wickUpColor: '#22c55e', wickDownColor: '#ef4444'
+        });
 
-      <!-- Jogo 3 -->
-      <div onclick="startGame(3)" class="bg-white border border-slate-200 rounded-3xl p-8 hover:shadow-xl hover:border-slate-300 transition cursor-pointer">
-        <div class="text-7xl mb-6">✊📄✂️</div>
-        <h3 class="text-2xl font-semibold mb-2">Pedra Papel Tesoura</h3>
-        <p class="text-slate-500">Melhor de 5 rondas</p>
-      </div>
+        // Gerar dados iniciais do gráfico
+        function generateChartData(basePrice) {
+            let data = [];
+            let time = Math.floor(Date.now() / 1000) - 100 * 60;
+            for (let i = 0; i < 100; i++) {
+                const open = basePrice * (1 + (Math.random() - 0.5) * 0.02);
+                const high = open * 1.01;
+                const low = open * 0.99;
+                const close = open * (1 + (Math.random() - 0.5) * 0.02);
+                data.push({ time: time + i * 60, open, high, low, close });
+            }
+            return data;
+        }
 
-      <!-- Jogo 4 -->
-      <div onclick="startGame(4)" class="bg-white border border-slate-200 rounded-3xl p-8 hover:shadow-xl hover:border-slate-300 transition cursor-pointer">
-        <div class="text-7xl mb-6">🎲</div>
-        <h3 class="text-2xl font-semibold mb-2">Duelo de Dados</h3>
-        <p class="text-slate-500">5 rondas • Maior soma vence</p>
-      </div>
+        // --- LÓGICA DO JOGO ---
+        function updateUI() {
+            document.getElementById('balance').innerText = `$${balance.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+            
+            const list = document.getElementById('coin-list');
+            list.innerHTML = '';
+            coins.forEach(coin => {
+                const div = document.createElement('div');
+                div.className = `p-3 rounded-lg flex justify-between items-center cursor-pointer hover:bg-zinc-800 transition ${activeCoin?.id === coin.id ? 'bg-zinc-800 ring-1 ring-green-500' : 'bg-zinc-900'}`;
+                div.onclick = () => selectCoin(coin);
+                div.innerHTML = `
+                    <div>
+                        <p class="font-bold">${coin.name}</p>
+                        <p class="text-[10px] text-gray-500 uppercase">${coin.isMeme ? 'Memecoin' : 'Real Asset'}</p>
+                    </div>
+                    <p class="${coin.isMeme ? 'neon-red' : 'neon-green'} font-mono">$${coin.price.toFixed(coin.price < 1 ? 6 : 2)}</p>
+                `;
+                list.appendChild(div);
+            });
 
-      <!-- Bingo -->
-      <div onclick="startGame(5)" class="bg-white border border-slate-200 rounded-3xl p-8 hover:shadow-xl hover:border-slate-300 transition cursor-pointer">
-        <div class="text-7xl mb-6">🎟️</div>
-        <h3 class="text-2xl font-semibold mb-2">Bingo Duel</h3>
-        <p class="text-slate-500">Cartas 5x5 • Primeiro a fazer linha</p>
-      </div>
-    </div>
-  </div>
+            const portList = document.getElementById('portfolio-list');
+            portList.innerHTML = '';
+            Object.keys(portfolio).forEach(id => {
+                const p = portfolio[id];
+                const coin = coins.find(c => c.id === id);
+                const profit = (coin.price * p.amount) - p.cost;
+                portList.innerHTML += `
+                    <div class="flex justify-between border-l-2 border-green-500 pl-2">
+                        <span>${coin.name}</span>
+                        <span class="${profit >= 0 ? 'text-green-500' : 'text-red-500'} font-bold">${profit >= 0 ? '+' : ''}${profit.toFixed(2)}</span>
+                    </div>
+                `;
+            });
+        }
 
-  <!-- GAME CONTAINER -->
-  <div id="game-container" class="hidden max-w-6xl mx-auto px-6 py-8">
-    <button onclick="backToLobby()" 
-            class="flex items-center gap-2 text-slate-500 hover:text-slate-700 mb-8 text-sm font-medium">
-      ← Voltar ao menu
-    </button>
+        function selectCoin(coin) {
+            activeCoin = coin;
+            document.getElementById('active-coin-name').innerText = coin.name;
+            document.getElementById('danger-badge').style.display = coin.isMeme ? 'inline-block' : 'none';
+            document.getElementById('stat-mcap').innerText = `$${coin.mcap}`;
+            document.getElementById('stat-vol').innerText = `$${coin.vol}`;
+            document.getElementById('stat-holders').innerText = coin.holders;
+            candleSeries.setData(generateChartData(coin.price));
+            updateUI();
+        }
 
-    <div id="game-title" class="text-4xl font-semibold text-center mb-10"></div>
+        function createMemecoin() {
+            const name = prompt("Nome da tua Memecoin (ex: ROCKET_PUMP):");
+            if(!name) return;
+            const newCoin = {
+                id: 'meme-' + Date.now(),
+                name: name.toUpperCase(),
+                price: 0.0001,
+                isMeme: true,
+                risk: Math.random() < 0.7 ? 70 : 0,
+                mcap: '10K',
+                vol: '5K',
+                holders: '1',
+                createdAt: Date.now()
+            };
+            coins.unshift(newCoin);
+            selectCoin(newCoin);
+        }
 
-    <!-- Aqui ficam os 5 jogos (o código completo está incluído) -->
-    <!-- PENALTY, JOGO DA VELHA, RPS, DADOS e BINGO continuam funcionando igual -->
+        function buyAction() {
+            if(!activeCoin) return;
+            const amount = 1000;
+            if(balance >= amount) {
+                balance -= amount;
+                if(!portfolio[activeCoin.id]) portfolio[activeCoin.id] = { amount: 0, cost: 0 };
+                portfolio[activeCoin.id].amount += amount / activeCoin.price;
+                portfolio[activeCoin.id].cost += amount;
+                updateUI();
+            }
+        }
 
-    <div id="game-1" class="hidden"> <!-- Penalty --> ... </div>
-    <div id="game-2" class="hidden"> <!-- Jogo da Velha --> ... </div>
-    <div id="game-3" class="hidden"> <!-- RPS --> ... </div>
-    <div id="game-4" class="hidden"> <!-- Dados --> ... </div>
+        function rugPullAction() {
+            if(!activeCoin || !portfolio[activeCoin.id]) return;
+            const sellValue = portfolio[activeCoin.id].amount * activeCoin.price;
+            balance += sellValue;
+            
+            // Simular o RugPull após a venda do jogador se for meme de risco
+            if(activeCoin.isMeme && activeCoin.risk > 0) {
+                activeCoin.price *= 0.01; // Cai 99%
+                activeCoin.mcap = "REKT";
+                candleSeries.setData(generateChartData(activeCoin.price));
+            }
+            
+            delete portfolio[activeCoin.id];
+            updateUI();
+        }
 
-    <!-- BINGO (mantido) -->
-    <div id="game-5" class="hidden">
-      <div class="text-center mb-8">
-        <button onclick="drawBingoNumber()" 
-                class="bg-slate-900 hover:bg-black text-white text-2xl px-14 py-7 rounded-3xl font-medium transition">
-          🎟️ Sortear Número
-        </button>
-      </div>
+        // Loop de Preços Live
+        setInterval(() => {
+            coins.forEach(c => {
+                const vol = c.isMeme ? 0.15 : 0.01;
+                c.price *= (1 + (Math.random() - 0.5) * vol);
+                
+                // Lógica dos 5 minutos: Após 5 min, se for de risco, chance de crashar sozinha
+                if(c.isMeme && c.risk > 0 && (Date.now() - c.createdAt) > 300000) {
+                    if(Math.random() < 0.05) c.price *= 0.5; // Começa a morrer
+                }
+            });
+            if(activeCoin) {
+                const lastData = {
+                    time: Math.floor(Date.now() / 1000),
+                    open: activeCoin.price,
+                    high: activeCoin.price * 1.02,
+                    low: activeCoin.price * 0.98,
+                    close: activeCoin.price
+                };
+                candleSeries.update(lastData);
+            }
+            updateUI();
+        }, 2000);
 
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
-        <div>
-          <div class="flex justify-between mb-4 px-2">
-            <h3 id="bingo-p1-name" class="font-semibold text-blue-600"></h3>
-          </div>
-          <div id="bingo-card-p1" class="grid grid-cols-5 gap-2 bg-white p-4 rounded-3xl border border-slate-200"></div>
-        </div>
-        <div>
-          <div class="flex justify-between mb-4 px-2">
-            <h3 id="bingo-p2-name" class="font-semibold text-violet-600"></h3>
-          </div>
-          <div id="bingo-card-p2" class="grid grid-cols-5 gap-2 bg-white p-4 rounded-3xl border border-slate-200"></div>
-        </div>
-      </div>
-
-      <div class="mt-12 bg-white border border-slate-200 rounded-3xl p-8">
-        <h4 class="font-medium text-slate-500 mb-6">NÚMEROS SORTEADOS</h4>
-        <div id="bingo-drawn" class="flex flex-wrap gap-4"></div>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    // (Todo o JavaScript continua exatamente igual ao da versão anterior - só mudei o visual)
-    let player1 = { name: "JOGADOR 1", score: 0 };
-    let player2 = { name: "JOGADOR 2", score: 0 };
-    let currentGame = 0;
-
-    // ... (todo o resto do código dos jogos - Penalty, Velha, RPS, Dados e Bingo - está incluído no ficheiro completo que te envio)
-
-    function updateHeader() {
-      document.getElementById("p1-name-display").textContent = player1.name;
-      document.getElementById("p2-name-display").textContent = player2.name;
-      document.getElementById("p1-score").textContent = player1.score;
-      document.getElementById("p2-score").textContent = player2.score;
-    }
-
-    function editPlayers() {
-      const p1 = prompt("Nome do Jogador 1:", player1.name) || player1.name;
-      const p2 = prompt("Nome do Jogador 2:", player2.name) || player2.name;
-      player1.name = p1.toUpperCase();
-      player2.name = p2.toUpperCase();
-      updateHeader();
-    }
-
-    function startGame(game) {
-      currentGame = game;
-      document.getElementById("lobby").classList.add("hidden");
-      document.getElementById("game-container").classList.remove("hidden");
-      document.querySelectorAll('#game-container > div').forEach(d => d.classList.add("hidden"));
-      document.getElementById(`game-${game}`).classList.remove("hidden");
-      document.getElementById("game-title").textContent = getGameTitle(game);
-      if (game === 5) startBingo();
-    }
-
-    function getGameTitle(g) {
-      if (g === 1) return "Duelo de Penaltis";
-      if (g === 2) return "Jogo da Velha";
-      if (g === 3) return "Pedra Papel Tesoura";
-      if (g === 4) return "Duelo de Dados";
-      if (g === 5) return "Bingo Duel";
-    }
-
-    function backToLobby() {
-      document.getElementById("game-container").classList.add("hidden");
-      document.getElementById("lobby").classList.remove("hidden");
-      currentGame = 0;
-    }
-
-    // ==================== BINGO (mantido) ====================
-    let bingoDrawn = new Set();
-    let bingoCardP1 = [], bingoCardP2 = [];
-    let markedP1 = new Set(), markedP2 = new Set();
-    const bingoNumbers = Array.from({length: 25}, (_, i) => i + 1);
-
-    function shuffle(arr) { return arr.sort(() => Math.random() - 0.5); }
-
-    function startBingo() {
-      bingoDrawn.clear(); markedP1.clear(); markedP2.clear();
-      bingoCardP1 = shuffle([...bingoNumbers]);
-      bingoCardP2 = shuffle([...bingoNumbers]);
-      document.getElementById("bingo-p1-name").textContent = player1.name;
-      document.getElementById("bingo-p2-name").textContent = player2.name;
-      document.getElementById("bingo-drawn").innerHTML = "";
-      renderBingoCard("p1");
-      renderBingoCard("p2");
-    }
-
-    function renderBingoCard(player) {
-      const container = document.getElementById(`bingo-card-${player}`);
-      container.innerHTML = "";
-      const card = player === "p1" ? bingoCardP1 : bingoCardP2;
-      card.forEach(num => {
-        const cell = document.createElement("div");
-        cell.className = "aspect-square flex items-center justify-center text-4xl font-semibold border border-slate-200 rounded-2xl bg-slate-50 hover:bg-slate-100 transition";
-        cell.textContent = num;
-        container.appendChild(cell);
-      });
-    }
-
-    function drawBingoNumber() {
-      const remaining = bingoNumbers.filter(n => !bingoDrawn.has(n));
-      if (remaining.length === 0) return alert("Todos os números foram sorteados!");
-      
-      const num = remaining[Math.floor(Math.random() * remaining.length)];
-      bingoDrawn.add(num);
-
-      const badge = document.createElement("div");
-      badge.className = "bg-slate-900 text-white px-7 py-4 rounded-2xl text-3xl font-medium";
-      badge.textContent = num;
-      document.getElementById("bingo-drawn").appendChild(badge);
-
-      markNumberIfPresent(num, "p1");
-      markNumberIfPresent(num, "p2");
-
-      if (hasBingo("p1")) { player1.score++; finishBingo(player1.name); }
-      else if (hasBingo("p2")) { player2.score++; finishBingo(player2.name); }
-    }
-
-    function markNumberIfPresent(num, player) {
-      const card = player === "p1" ? bingoCardP1 : bingoCardP2;
-      const index = card.indexOf(num);
-      if (index === -1) return;
-      const set = player === "p1" ? markedP1 : markedP2;
-      set.add(num);
-      const cell = document.getElementById(`bingo-card-${player}`).children[index];
-      if (cell) {
-        cell.style.backgroundColor = player === "p1" ? "#dbeafe" : "#ede9fe";
-        cell.style.textDecoration = "line-through";
-      }
-    }
-
-    function hasBingo(player) {
-      const marked = player === "p1" ? markedP1 : markedP2;
-      const card = player === "p1" ? bingoCardP1 : bingoCardP2;
-      // linhas, colunas e diagonais (mesma lógica anterior)
-      for (let r = 0; r < 5; r++) if (card.slice(r*5, r*5+5).every(n => marked.has(n))) return true;
-      for (let c = 0; c < 5; c++) if ([0,1,2,3,4].every(r => marked.has(card[r*5 + c]))) return true;
-      if ([0,1,2,3,4].every(i => marked.has(card[i*5 + i]))) return true;
-      if ([0,1,2,3,4].every(i => marked.has(card[i*5 + 4-i]))) return true;
-      return false;
-    }
-
-    function finishBingo(winner) {
-      updateHeader();
-      alert(`${winner} FEZ BINGO! 🎉`);
-      backToLobby();
-    }
-
-    window.onload = updateHeader;
-  </script>
+        // Iniciar com BTC
+        selectCoin(coins[0]);
+    </script>
 </body>
 </html>
