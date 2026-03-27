@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Amigo Duel ⚡ - 4 Jogos vs Amigo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+    body { font-family: 'Press Start 2P', sans-serif; }
+    .neon-text { text-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff; }
+    .game-card { transition: all 0.3s; }
+    .game-card:hover { transform: scale(1.08); box-shadow: 0 0 25px #ff00ff; }
+  </style>
+</head>
+<body class="bg-zinc-950 text-white min-h-screen">
+
+  <!-- HEADER -->
+  <div class="bg-black border-b-4 border-cyan-400 p-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <span class="text-4xl">⚡</span>
+      <h1 class="text-3xl neon-text text-cyan-400">AMIGO DUEL</h1>
+    </div>
+    <div class="flex items-center gap-8 text-sm">
+      <div class="flex items-center gap-2">
+        <div id="p1-name-display" class="bg-cyan-500 text-black px-4 py-1 rounded font-bold">JOGADOR 1</div>
+        <div id="p1-score" class="text-3xl font-bold text-cyan-400">0</div>
+      </div>
+      <div class="text-pink-400 text-xl">VS</div>
+      <div class="flex items-center gap-2">
+        <div id="p2-score" class="text-3xl font-bold text-pink-400">0</div>
+        <div id="p2-name-display" class="bg-pink-500 text-black px-4 py-1 rounded font-bold">JOGADOR 2</div>
+      </div>
+    </div>
+    <button onclick="editPlayers()" class="bg-white text-black px-4 py-2 rounded text-xs hover:bg-yellow-300">EDITAR NOMES</button>
+  </div>
+
+  <!-- LOBBY -->
+  <div id="lobby" class="max-w-5xl mx-auto p-6">
+    <h2 class="text-center text-2xl mb-8 text-yellow-300">ESCOLHE O JOGO ⚔️</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+      <!-- Jogo 1: Penalty -->
+      <div onclick="startGame(1)" class="game-card bg-zinc-900 border-4 border-cyan-400 rounded-3xl p-6 cursor-pointer">
+        <div class="text-6xl mb-4">⚽</div>
+        <h3 class="text-2xl mb-2">Duelo de Penaltis</h3>
+        <p class="text-zinc-400 text-sm">5 penaltis cada • 25% chance de defesa • Por turnos</p>
+      </div>
+
+      <!-- Jogo 2: Jogo da Velha -->
+      <div onclick="startGame(2)" class="game-card bg-zinc-900 border-4 border-pink-400 rounded-3xl p-6 cursor-pointer">
+        <div class="text-6xl mb-4">⭕❌</div>
+        <h3 class="text-2xl mb-2">Jogo da Velha</h3>
+        <p class="text-zinc-400 text-sm">Clássico 3x3 • Primeiro a 3 em linha</p>
+      </div>
+
+      <!-- Jogo 3: Pedra Papel Tesoura -->
+      <div onclick="startGame(3)" class="game-card bg-zinc-900 border-4 border-yellow-400 rounded-3xl p-6 cursor-pointer">
+        <div class="text-6xl mb-4">✊📄✂️</div>
+        <h3 class="text-2xl mb-2">Pedra Papel Tesoura</h3>
+        <p class="text-zinc-400 text-sm">Melhor de 5 • Quem ganha mais rondas</p>
+      </div>
+
+      <!-- Jogo 4: Duelo de Dados -->
+      <div onclick="startGame(4)" class="game-card bg-zinc-900 border-4 border-lime-400 rounded-3xl p-6 cursor-pointer">
+        <div class="text-6xl mb-4">🎲</div>
+        <h3 class="text-2xl mb-2">Duelo de Dados</h3>
+        <p class="text-zinc-400 text-sm">5 rondas • Maior soma de dados vence</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTAINER DOS JOGOS -->
+  <div id="game-container" class="hidden max-w-4xl mx-auto p-6">
+
+    <button onclick="backToLobby()" class="mb-6 text-sm bg-zinc-800 hover:bg-zinc-700 px-6 py-3 rounded-2xl flex items-center gap-2">
+      ← VOLTAR AO MENU
+    </button>
+
+    <div id="game-title" class="text-4xl font-bold mb-6 text-center"></div>
+
+    <!-- JOGO 1: PENALTY -->
+    <div id="game-1" class="hidden">
+      <div class="bg-zinc-900 rounded-3xl p-8 text-center">
+        <div id="shooter-info" class="text-xl mb-6"></div>
+        <div class="relative mx-auto w-96 h-72 bg-emerald-950 border-8 border-white rounded-3xl overflow-hidden">
+          <canvas id="penalty-canvas" width="384" height="288" class="absolute inset-0"></canvas>
+        </div>
+        <div class="grid grid-cols-2 gap-4 mt-8">
+          <button onclick="shootPenalty(1)" class="bg-cyan-500 hover:bg-cyan-600 text-black py-6 text-xl rounded-2xl">Canto Superior Esquerdo</button>
+          <button onclick="shootPenalty(2)" class="bg-cyan-500 hover:bg-cyan-600 text-black py-6 text-xl rounded-2xl">Canto Superior Direito</button>
+          <button onclick="shootPenalty(3)" class="bg-cyan-500 hover:bg-cyan-600 text-black py-6 text-xl rounded-2xl">Canto Inferior Esquerdo</button>
+          <button onclick="shootPenalty(4)" class="bg-cyan-500 hover:bg-cyan-600 text-black py-6 text-xl rounded-2xl">Canto Inferior Direito</button>
+        </div>
+        <div id="penalty-result" class="mt-6 text-2xl font-bold min-h-[60px]"></div>
+      </div>
+      <div class="text-center mt-4 text-zinc-400">Penaltis restantes: <span id="shots-left" class="text-white font-bold">10</span></div>
+    </div>
+
+    <!-- JOGO 2: JOGO DA VELHA -->
+    <div id="game-2" class="hidden">
+      <div class="flex justify-center">
+        <div class="grid grid-cols-3 gap-2 bg-zinc-900 p-4 rounded-3xl" id="tic-tac-toe-board">
+          <!-- JS preenche os 9 botões -->
+        </div>
+      </div>
+      <div id="ttt-status" class="text-center text-2xl mt-6 font-bold"></div>
+    </div>
+
+    <!-- JOGO 3: PEDRA PAPEL TESOURA -->
+    <div id="game-3" class="hidden text-center">
+      <div class="flex justify-center gap-12 mb-8">
+        <div id="p1-rps" class="text-8xl"></div>
+        <div id="p2-rps" class="text-8xl"></div>
+      </div>
+      <div class="flex justify-center gap-6">
+        <button onclick="playRPS('rock')" class="text-7xl p-6 bg-zinc-800 hover:bg-zinc-700 rounded-3xl">✊</button>
+        <button onclick="playRPS('paper')" class="text-7xl p-6 bg-zinc-800 hover:bg-zinc-700 rounded-3xl">📄</button>
+        <button onclick="playRPS('scissors')" class="text-7xl p-6 bg-zinc-800 hover:bg-zinc-700 rounded-3xl">✂️</button>
+      </div>
+      <div id="rps-status" class="mt-8 text-2xl"></div>
+      <div class="mt-4">Melhor de 5 • Pontos: <span id="rps-score" class="font-bold"></span></div>
+    </div>
+
+    <!-- JOGO 4: DUELO DE DADOS -->
+    <div id="game-4" class="hidden text-center">
+      <div class="flex justify-center gap-16 mb-8">
+        <div>
+          <div id="dice-p1" class="text-8xl mb-2">🎲</div>
+          <div id="dice-p1-result" class="text-4xl font-bold"></div>
+        </div>
+        <div>
+          <div id="dice-p2" class="text-8xl mb-2">🎲</div>
+          <div id="dice-p2-result" class="text-4xl font-bold"></div>
+        </div>
+      </div>
+      <button onclick="rollDice()" class="bg-lime-400 text-black text-2xl px-12 py-6 rounded-3xl hover:bg-lime-300">RODAR DADOS</button>
+      <div id="dice-round" class="mt-8 text-xl"></div>
+    </div>
+  </div>
+
+  <script>
+    // ==================== CONFIGURAÇÃO TAILWIND ====================
+    function initTailwind() {
+      tailwind.config = {
+        content: ["./**/*.{html,js}"],
+        theme: { extend: {} }
+      }
+    }
+
+    // ==================== VARIÁVEIS GLOBAIS ====================
+    let player1 = { name: "JOGADOR 1", score: 0 }
+    let player2 = { name: "JOGADOR 2", score: 0 }
+    let currentGame = 0
+    let currentPlayer = 1
+
+    // Penalty variables
+    let p1Goals = 0, p2Goals = 0, shotsLeft = 10, currentShooter = 1
+
+    // Tic Tac Toe
+    let board = Array(9).fill(null)
+    let tttCurrent = "X"
+
+    // RPS
+    let rpsWinsP1 = 0, rpsWinsP2 = 0, rpsRound = 0
+
+    // Dice
+    let diceRound = 0
+    let diceP1Total = 0, diceP2Total = 0
+
+    // ==================== FUNÇÕES PRINCIPAIS ====================
+    function updateHeader() {
+      document.getElementById("p1-name-display").textContent = player1.name
+      document.getElementById("p2-name-display").textContent = player2.name
+      document.getElementById("p1-score").textContent = player1.score
+      document.getElementById("p2-score").textContent = player2.score
+    }
+
+    function editPlayers() {
+      const p1 = prompt("Nome do Jogador 1:", player1.name) || player1.name
+      const p2 = prompt("Nome do Jogador 2:", player2.name) || player2.name
+      player1.name = p1.toUpperCase()
+      player2.name = p2.toUpperCase()
+      updateHeader()
+    }
+
+    function startGame(game) {
+      currentGame = game
+      document.getElementById("lobby").classList.add("hidden")
+      document.getElementById("game-container").classList.remove("hidden")
+
+      // esconder todos os jogos
+      document.querySelectorAll('#game-container > div').forEach(div => div.classList.add("hidden"))
+      document.getElementById(`game-${game}`).classList.remove("hidden")
+
+      document.getElementById("game-title").innerHTML = getGameTitle(game)
+
+      if (game === 1) startPenalty()
+      if (game === 2) startTicTacToe()
+      if (game === 3) startRPS()
+      if (game === 4) startDice()
+    }
+
+    function getGameTitle(g) {
+      if (g === 1) return "⚽ DUELO DE PENALTIS"
+      if (g === 2) return "⭕ JOGO DA VELHA"
+      if (g === 3) return "✊ PEDRA PAPEL TESOURA"
+      if (g === 4) return "🎲 DUELO DE DADOS"
+    }
+
+    function backToLobby() {
+      document.getElementById("game-container").classList.add("hidden")
+      document.getElementById("lobby").classList.remove("hidden")
+      currentGame = 0
+    }
+
+    // ==================== JOGO 1 - PENALTY ====================
+    function startPenalty() {
+      p1Goals = 0; p2Goals = 0; shotsLeft = 10; currentShooter = 1
+      updatePenaltyUI()
+      drawPenaltyCanvas()
+    }
+
+    function updatePenaltyUI() {
+      document.getElementById("shooter-info").innerHTML = 
+        `Vez de <span class="text-${currentShooter===1?'cyan':'pink'}-400">${currentShooter===1?player1.name:player2.name}</span>`
+      document.getElementById("shots-left").textContent = shotsLeft
+      document.getElementById("penalty-result").innerHTML = ""
+    }
+
+    function drawPenaltyCanvas() {
+      const canvas = document.getElementById("penalty-canvas")
+      const ctx = canvas.getContext("2d")
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      
+      // rede
+      ctx.fillStyle = "#fff"
+      ctx.fillRect(40, 40, 304, 200)
+      ctx.strokeStyle = "#000"
+      ctx.lineWidth = 8
+      ctx.strokeRect(40, 40, 304, 200)
+      
+      // linhas da rede
+      ctx.lineWidth = 3
+      for (let i = 1; i < 6; i++) {
+        ctx.beginPath()
+        ctx.moveTo(40 + i*60, 40)
+        ctx.lineTo(40 + i*60, 240)
+        ctx.stroke()
+      }
+      for (let i = 1; i < 4; i++) {
+        ctx.beginPath()
+        ctx.moveTo(40, 40 + i*50)
+        ctx.lineTo(344, 40 + i*50)
+        ctx.stroke()
+      }
+      
+      // bola inicial
+      ctx.fillStyle = "#fff"
+      ctx.beginPath()
+      ctx.arc(192, 260, 18, 0, Math.PI*2)
+      ctx.fill()
+    }
+
+    function shootPenalty(zone) {
+      if (shotsLeft <= 0) return
+      
+      const saveChance = Math.random() < 0.25
+      const gkZone = Math.floor(Math.random() * 4) + 1
+      
+      const isGoal = !(saveChance && gkZone === zone)
+      
+      if (currentShooter === 1) {
+        if (isGoal) p1Goals++
+      } else {
+        if (isGoal) p2Goals++
+      }
+      
+      // resultado
+      const resultEl = document.getElementById("penalty-result")
+      if (isGoal) {
+        resultEl.innerHTML = `<span class="text-green-400">GOL!!! ⚽</span>`
+      } else {
+        resultEl.innerHTML = `<span class="text-red-400">DEFESA! 🧤</span>`
+      }
+      
+      shotsLeft--
+      currentShooter = currentShooter === 1 ? 2 : 1
+      
+      // fim do jogo?
+      if (shotsLeft === 0) {
+        setTimeout(() => endPenaltyGame(), 1200)
+      } else {
+        setTimeout(() => {
+          updatePenaltyUI()
+          drawPenaltyCanvas()
+        }, 1200)
+      }
+    }
+
+    function endPenaltyGame() {
+      let winnerText = ""
+      if (p1Goals > p2Goals) {
+        player1.score++
+        winnerText = `${player1.name} VENCEU O DUELO! (${p1Goals} - ${p2Goals})`
+      } else if (p2Goals > p1Goals) {
+        player2.score++
+        winnerText = `${player2.name} VENCEU O DUELO! (${p2Goals} - ${p1Goals})`
+      } else {
+        winnerText = `EMPATE! (${p1Goals} - ${p2Goals})`
+      }
+      
+      alert(winnerText + "\n\nPontos totais atualizados!")
+      updateHeader()
+      backToLobby()
+    }
+
+    // ==================== JOGO 2 - JOGO DA VELHA ====================
+    function startTicTacToe() {
+      board = Array(9).fill(null)
+      tttCurrent = "X"
+      const boardEl = document.getElementById("tic-tac-toe-board")
+      boardEl.innerHTML = ""
+      for (let i = 0; i < 9; i++) {
+        const cell = document.createElement("button")
+        cell.className = "w-24 h-24 bg-zinc-800 text-6xl hover:bg-zinc-700 rounded-2xl"
+        cell.onclick = () => tttMove(i)
+        boardEl.appendChild(cell)
+      }
+      document.getElementById("ttt-status").textContent = `Vez de ${player1.name} (X)`
+    }
+
+    function tttMove(index) {
+      if (board[index] || checkWinner()) return
+      board[index] = tttCurrent
+      const cells = document.getElementById("tic-tac-toe-board").children
+      cells[index].textContent = tttCurrent
+      
+      if (checkWinner()) {
+        const winner = tttCurrent === "X" ? player1 : player2
+        winner.score++
+        updateHeader()
+        alert(`${winner.name} GANHOU O JOGO DA VELHA!`)
+        backToLobby()
+        return
+      }
+      
+      if (!board.includes(null)) {
+        alert("EMPATE!")
+        backToLobby()
+        return
+      }
+      
+      tttCurrent = tttCurrent === "X" ? "O" : "X"
+      const nextPlayer = tttCurrent === "X" ? player1.name : player2.name
+      document.getElementById("ttt-status").textContent = `Vez de ${nextPlayer} (${tttCurrent})`
+    }
+
+    function checkWinner() {
+      const winConditions = [
+        [0,1,2],[3,4,5],[6,7,8],
+        [0,3,6],[1,4,7],[2,5,8],
+        [0,4,8],[2,4,6]
+      ]
+      for (let cond of winConditions) {
+        if (board[cond[0]] && board[cond[0]] === board[cond[1]] && board[cond[0]] === board[cond[2]]) return true
+      }
+      return false
+    }
+
+    // ==================== JOGO 3 - PEDRA PAPEL TESOURA ====================
+    function startRPS() {
+      rpsWinsP1 = 0; rpsWinsP2 = 0; rpsRound = 0
+      updateRPSStatus()
+    }
+
+    function playRPS(choice) {
+      if (rpsRound >= 5) return
+      
+      const options = ["rock","paper","scissors"]
+      const p2Choice = options[Math.floor(Math.random()*3)]
+      
+      document.getElementById("p1-rps").textContent = getRpsEmoji(choice)
+      document.getElementById("p2-rps").textContent = getRpsEmoji(p2Choice)
+      
+      rpsRound++
+      
+      if (choice === p2Choice) {
+        // empate
+      } else if (
+        (choice === "rock" && p2Choice === "scissors") ||
+        (choice === "paper" && p2Choice === "rock") ||
+        (choice === "scissors" && p2Choice === "paper")
+      ) {
+        rpsWinsP1++
+      } else {
+        rpsWinsP2++
+      }
+      
+      updateRPSStatus()
+      
+      if (rpsRound === 5) {
+        setTimeout(() => {
+          if (rpsWinsP1 > rpsWinsP2) player1.score++
+          else if (rpsWinsP2 > rpsWinsP1) player2.score++
+          updateHeader()
+          alert(`Fim! ${player1.name} ${rpsWinsP1} - ${rpsWinsP2} ${player2.name}`)
+          backToLobby()
+        }, 800)
+      }
+    }
+
+    function getRpsEmoji(c) {
+      if (c === "rock") return "✊"
+      if (c === "paper") return "📄"
+      return "✂️"
+    }
+
+    function updateRPSStatus() {
+      document.getElementById("rps-status").innerHTML = 
+        `Ronda ${rpsRound}/5<br><span class="text-cyan-400">${player1.name} ${rpsWinsP1}</span> - <span class="text-pink-400">${player2.name} ${rpsWinsP2}</span>`
+    }
+
+    // ==================== JOGO 4 - DUELO DE DADOS ====================
+    function startDice() {
+      diceRound = 0
+      diceP1Total = 0
+      diceP2Total = 0
+      document.getElementById("dice-round").innerHTML = `Ronda <span class="text-3xl">1/5</span>`
+      document.getElementById("dice-p1-result").innerHTML = ""
+      document.getElementById("dice-p2-result").innerHTML = ""
+    }
+
+    function rollDice() {
+      if (diceRound >= 5) return
+      
+      const roll1 = Math.floor(Math.random() * 6) + 1
+      const roll2 = Math.floor(Math.random() * 6) + 1
+      const sum = roll1 + roll2
+      
+      diceRound++
+      
+      if (diceRound % 2 === 1) {
+        // vez jogador 1
+        diceP1Total += sum
+        document.getElementById("dice-p1-result").innerHTML = `${roll1} + ${roll2} = <span class="text-cyan-400">${sum}</span>`
+      } else {
+        diceP2Total += sum
+        document.getElementById("dice-p2-result").innerHTML = `${roll1} + ${roll2} = <span class="text-pink-400">${sum}</span>`
+      }
+      
+      document.getElementById("dice-round").innerHTML = `Ronda <span class="text-3xl">${diceRound}/5</span>`
+      
+      if (diceRound === 5) {
+        setTimeout(() => {
+          if (diceP1Total > diceP2Total) player1.score++
+          else if (diceP2Total > diceP1Total) player2.score++
+          updateHeader()
+          alert(`Fim do Duelo de Dados!\n${player1.name}: ${diceP1Total} • ${player2.name}: ${diceP2Total}`)
+          backToLobby()
+        }, 1000)
+      }
+    }
+
+    // ==================== INICIALIZAÇÃO ====================
+    window.onload = () => {
+      initTailwind()
+      updateHeader()
+    }
+  </script>
+</body>
+</html>
