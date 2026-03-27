@@ -1,284 +1,358 @@
 <!DOCTYPE html>
 <html lang="pt">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RugPump • Pump or Rug?</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-    body { font-family: 'Inter', sans-serif; }
-    .tab-active { border-bottom: 4px solid #a855f7; color: #a855f7; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RugPump | FOMO Experience</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body { background-color: #000; color: #fff; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .fomo-purple { background-color: #7B3FE4; }
+        .fomo-text-purple { color: #7B3FE4; }
+        .card-dark { background-color: #121212; border: 1px solid #1f1f1f; }
+        .chart-line { fill: none; stroke: #22c55e; stroke-width: 3; stroke-linecap: round; filter: drop-shadow(0 0 8px rgba(34, 197, 94, 0.4)); }
+        .chart-area { fill: url(#gradient); opacity: 0.2; }
+        .rug-anim { animation: rug-shake 0.2s infinite; }
+        @keyframes rug-shake { 0% { transform: translate(1px, 1px); } 50% { transform: translate(-1px, -2px); } 100% { transform: translate(1px, 1px); } }
+        ::-webkit-scrollbar { display: none; }
+        .nav-active { color: #7B3FE4; }
+        .buy-dot { fill: #22c55e; stroke: #000; stroke-width: 2; }
+        .sell-dot { fill: #ef4444; stroke: #000; stroke-width: 2; }
+    </style>
 </head>
-<body class="bg-[#1a0f2e] text-white min-h-screen">
+<body class="max-w-md mx-auto h-screen overflow-hidden flex flex-col">
 
-  <!-- TOP BAR -->
-  <div class="bg-[#2a1b4a] border-b border-purple-500 sticky top-0 z-50">
-    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <span class="text-4xl">🔥</span>
-        <h1 class="text-3xl font-bold tracking-tighter text-purple-400">RUGPUMP</h1>
-      </div>
-      <div class="flex gap-8 text-lg font-medium">
-        <button onclick="switchTab(0)" id="tab-0" class="tab-active px-6 py-2">Discover</button>
-        <button onclick="switchTab(1)" id="tab-1" class="px-6 py-2">Portfolio</button>
-        <button onclick="switchTab(2)" id="tab-2" class="px-6 py-2">Create Memecoin</button>
-        <button onclick="switchTab(3)" id="tab-3" class="px-6 py-2">Profile</button>
-      </div>
-      <div class="flex items-center gap-4">
-        <div class="bg-emerald-500 text-black px-5 py-2 rounded-3xl font-bold">$<span id="balance">18,742</span></div>
-      </div>
-    </div>
-  </div>
+    <div id="view-market" class="flex-1 flex flex-col overflow-hidden">
+        <header class="p-6">
+            <div class="flex justify-between items-center mb-2">
+                <h1 class="text-3xl font-extrabold tracking-tight">Portfolio</h1>
+                <div class="flex gap-4">
+                    <i data-lucide="search" class="w-6 h-6 text-zinc-500"></i>
+                    <i data-lucide="bell" class="w-6 h-6 text-zinc-500"></i>
+                </div>
+            </div>
+            <div class="flex items-baseline gap-2">
+                <span id="display-balance" class="text-4xl font-extrabold italic">$135,683.23</span>
+                <span class="text-green-500 font-bold text-sm">▲ 23.35%</span>
+            </div>
+        </header>
 
-  <!-- DISCOVER -->
-  <div id="screen-0" class="max-w-7xl mx-auto px-6 py-8">
-    <h2 class="text-4xl font-bold mb-8">Trending • Pump or Rug?</h2>
-    <div id="coin-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
-  </div>
-
-  <!-- PORTFOLIO -->
-  <div id="screen-1" class="hidden max-w-7xl mx-auto px-6 py-8">
-    <h2 class="text-4xl font-bold mb-8">Portfolio</h2>
-    <div class="bg-[#2a1b4a] rounded-3xl p-8 mb-8">
-      <p class="text-purple-300">Total Value</p>
-      <p id="portfolio-value" class="text-6xl font-bold">$24,893 <span class="text-emerald-400 text-2xl">+18.4%</span></p>
-    </div>
-    <h3 class="text-xl mb-4">Open Positions</h3>
-    <div id="open-positions" class="space-y-4"></div>
-  </div>
-
-  <!-- CREATE -->
-  <div id="screen-2" class="hidden max-w-7xl mx-auto px-6 py-8">
-    <h2 class="text-4xl font-bold mb-8">Criar Nova Memecoin</h2>
-    <div class="bg-[#2a1b4a] rounded-3xl p-10 max-w-lg mx-auto">
-      <input id="c-name" placeholder="Nome da memecoin" class="w-full bg-[#1a0f2e] rounded-2xl px-6 py-5 mb-6 text-lg">
-      <input id="c-symbol" placeholder="Símbolo ($RUGGY)" class="w-full bg-[#1a0f2e] rounded-2xl px-6 py-5 mb-8 uppercase">
-      <button onclick="createNewCoin()" class="w-full bg-purple-600 hover:bg-purple-700 py-7 text-2xl font-bold rounded-3xl">LAUNCH MEMECOIN 🔥</button>
-    </div>
-  </div>
-
-  <!-- PROFILE -->
-  <div id="screen-3" class="hidden max-w-7xl mx-auto px-6 py-8">
-    <h2 class="text-4xl font-bold mb-8">Meu Perfil</h2>
-    <div id="profile-content" class="bg-[#2a1b4a] rounded-3xl p-8 text-center">
-      <p class="text-purple-300">Trades fechadas: <span id="closed-count" class="font-bold text-3xl">27</span></p>
-      <p class="text-emerald-400 text-5xl font-bold mt-4">+ $8,421 P&L</p>
-    </div>
-  </div>
-
-  <!-- COIN DETAIL MODAL -->
-  <div id="modal" onclick="if(event.target===this)closeModal()" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-[100]">
-    <div onclick="event.stopImmediatePropagation()" class="bg-[#2a1b4a] rounded-3xl w-full max-w-2xl mx-4 p-8">
-      <div class="flex justify-between items-center mb-6">
-        <div id="modal-symbol" class="text-4xl font-bold"></div>
-        <button onclick="closeModal()" class="text-4xl">×</button>
-      </div>
-      
-      <div class="flex gap-8 mb-8">
-        <div id="modal-price" class="text-5xl font-bold"></div>
-        <div id="modal-change" class="text-3xl font-bold"></div>
-      </div>
-
-      <!-- CHART -->
-      <div class="mb-8">
-        <div class="flex gap-6 mb-4 text-sm">
-          <button onclick="changeTimeframe(0)" class="tab-active px-4 py-2" id="tf-0">LIVE</button>
-          <button onclick="changeTimeframe(1)" class="px-4 py-2" id="tf-1">1H</button>
-          <button onclick="changeTimeframe(2)" class="px-4 py-2" id="tf-2">4H</button>
-          <button onclick="changeTimeframe(3)" class="px-4 py-2" id="tf-3">1D</button>
+        <div class="px-6 flex gap-4 mb-4 text-sm font-bold border-b border-zinc-900">
+            <button class="pb-2 border-b-2 border-white">Trending</button>
+            <button class="pb-2 text-zinc-500">Large Cap</button>
+            <button class="pb-2 text-zinc-500">Newly listed</button>
         </div>
-        <canvas id="priceChart" height="260"></canvas>
-      </div>
 
-      <!-- STATS -->
-      <div class="grid grid-cols-3 gap-4 text-center mb-8">
-        <div><p class="text-purple-300 text-xs">Market Cap</p><p id="modal-mc" class="font-bold"></p></div>
-        <div><p class="text-purple-300 text-xs">Volume 24h</p><p id="modal-vol" class="font-bold"></p></div>
-        <div><p class="text-purple-300 text-xs">Holders</p><p id="modal-holders" class="font-bold"></p></div>
-      </div>
-
-      <!-- WARNINGS -->
-      <div id="modal-warnings" class="mb-8"></div>
-
-      <div class="flex gap-4">
-        <button onclick="buyFromModal()" class="flex-1 bg-emerald-500 text-black py-6 text-2xl font-bold rounded-3xl">BUY</button>
-        <button onclick="sellFromModal()" class="flex-1 bg-red-500 py-6 text-2xl font-bold rounded-3xl">SELL</button>
-      </div>
+        <div id="coin-list" class="flex-1 overflow-y-auto px-6 space-y-6 pb-24">
+            </div>
     </div>
-  </div>
 
-  <script>
-    // ==================== 55+ COINS ====================
-    let coins = [
-      {id:1, name:"Bitcoin", symbol:"BTC", price:66234, change:1.2, mc:"1.31T", vol:"42B", holders:"48M", warning:"", logo:"₿"},
-      {id:2, name:"Ethereum", symbol:"ETH", price:2489, change:-0.8, mc:"300B", vol:"18B", holders:"32M", warning:"", logo:"Ξ"},
-      {id:3, name:"Solana", symbol:"SOL", price:148, change:4.5, mc:"68B", vol:"3.2B", holders:"12M", warning:"Low Liquidity", logo:"◎"},
-      {id:4, name:"Pepe", symbol:"PEPE", price:0.0000124, change:28, mc:"5.2B", vol:"890M", holders:"890K", warning:"Possible Scam", logo:"🐸"},
-      // ... (mais 50+ coins geradas automaticamente no código completo)
-    ];
-
-    // Gerar mais 50 memecoins automaticamente
-    const memeNames = ["MOG","GOAT","BRETT","WIF","BONK","POPCAT","CHILLGUY","MOODENG","GME","FARTCOIN","DOGE","SHIB","FLOKI","NEIRO","TURBO","AURA","MEW","BOME","MICHI","PENGU"];
-    for (let i = 5; i <= 55; i++) {
-      const meme = memeNames[Math.floor(Math.random()*memeNames.length)];
-      coins.push({
-        id: i,
-        name: meme + " Coin",
-        symbol: "$" + meme,
-        price: parseFloat((Math.random()*0.1).toFixed(8)),
-        change: parseFloat((Math.random()*120 - 40).toFixed(1)),
-        mc: (Math.random()*800 + 10).toFixed(1) + "M",
-        vol: (Math.random()*120 + 5).toFixed(1) + "M",
-        holders: Math.floor(Math.random()*1200) + "K",
-        warning: Math.random() < 0.7 ? ["Low Volume","Low Liquidity","Possible Scam","High Risk"][Math.floor(Math.random()*4)] : "",
-        logo: "🪙"
-      });
-    }
-
-    let currentCoin = null;
-    let chartInstance = null;
-    let userBalance = 18742;
-
-    function renderCoinList() {
-      const container = document.getElementById("coin-list");
-      container.innerHTML = "";
-      coins.forEach(coin => {
-        const div = document.createElement("div");
-        div.className = "bg-[#2a1b4a] rounded-3xl p-6 hover:scale-105 transition cursor-pointer";
-        div.innerHTML = `
-          <div class="flex justify-between items-center">
-            <div class="flex items-center gap-4">
-              <div class="text-4xl">${coin.logo}</div>
-              <div>
-                <p class="font-bold text-xl">${coin.symbol}</p>
-                <p class="text-purple-300">${coin.name}</p>
-              </div>
+    <div id="view-trade" class="fixed inset-0 bg-black z-50 hidden flex flex-col">
+        <header class="p-6 flex justify-between items-center">
+            <button onclick="changeView('market')"><i data-lucide="chevron-left" class="w-8 h-8"></i></button>
+            <div class="text-center">
+                <h2 id="trade-coin-name" class="font-bold text-lg">$CHILLGUY</h2>
+                <div class="flex items-center gap-1 justify-center">
+                    <span class="w-2 h-2 rounded-full bg-purple-500"></span>
+                    <span class="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Open</span>
+                </div>
             </div>
+            <button class="bg-zinc-800 px-4 py-1 rounded-full text-xs font-bold">Following</button>
+        </header>
+
+        <div class="px-6 flex justify-between items-end mb-8">
+            <div class="w-16 h-16 rounded-2xl bg-zinc-800" id="trade-coin-img"></div>
             <div class="text-right">
-              <p class="font-mono text-2xl">$${coin.price < 1 ? coin.price.toFixed(8) : coin.price.toLocaleString()}</p>
-              <p class="${coin.change > 0 ? 'text-emerald-400' : 'text-red-400'} font-bold">${coin.change > 0 ? '+' : ''}${coin.change}%</p>
+                <p id="trade-coin-mcap" class="text-2xl font-bold">$211.8M</p>
+                <p class="text-zinc-500 text-xs font-bold uppercase tracking-widest">Market cap</p>
             </div>
-          </div>
-          ${coin.warning ? `<div class="mt-4 text-xs bg-red-500/20 text-red-400 px-4 py-1 rounded-2xl inline-block">${coin.warning}</div>` : ''}
-          <div class="grid grid-cols-3 text-xs mt-6 text-purple-300">
-            <div>MC <span class="font-bold text-white">${coin.mc}</span></div>
-            <div>Vol <span class="font-bold text-white">${coin.vol}</span></div>
-            <div>Holders <span class="font-bold text-white">${coin.holders}</span></div>
-          </div>
-        `;
-        div.onclick = () => openCoinModal(coin);
-        container.appendChild(div);
-      });
-    }
+        </div>
 
-    function openCoinModal(coin) {
-      currentCoin = coin;
-      document.getElementById("modal-symbol").innerHTML = `${coin.logo} ${coin.symbol}`;
-      document.getElementById("modal-price").textContent = `$${coin.price < 1 ? coin.price.toFixed(8) : coin.price.toLocaleString()}`;
-      document.getElementById("modal-change").innerHTML = `<span class="${coin.change > 0 ? 'text-emerald-400' : 'text-red-400'}">${coin.change > 0 ? '▲' : '▼'} ${coin.change}%</span>`;
-      
-      // Warnings
-      const warnDiv = document.getElementById("modal-warnings");
-      warnDiv.innerHTML = coin.warning ? `<div class="bg-red-500/10 border border-red-500 text-red-400 px-6 py-4 rounded-2xl text-center">${coin.warning}</div>` : "";
+        <div class="flex-1 relative px-2">
+            <svg id="custom-chart" class="w-full h-full" viewBox="0 0 400 200" preserveAspectRatio="none">
+                <defs>
+                    <linearGradient id="gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" style="stop-color:#22c55e;stop-opacity:0.3" />
+                        <stop offset="100%" style="stop-color:#22c55e;stop-opacity:0" />
+                    </defs>
+                </defs>
+                <path id="chart-path-area" class="chart-area" d=""></path>
+                <path id="chart-path-line" class="chart-line" d=""></path>
+                <g id="chart-dots"></g>
+            </svg>
+        </div>
 
-      document.getElementById("modal-mc").textContent = coin.mc;
-      document.getElementById("modal-vol").textContent = coin.vol;
-      document.getElementById("modal-holders").textContent = coin.holders;
+        <div class="p-6 space-y-6 bg-zinc-900/30 rounded-t-3xl border-t border-white/5">
+            <div class="flex justify-between items-center">
+                <div>
+                    <p id="trade-user-pos" class="text-2xl font-bold">$3,200.23</p>
+                    <p class="text-zinc-500 text-xs">529.12K tokens</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-green-500 text-xl font-bold">+$1,200.23</p>
+                    <p class="text-green-500 text-xs font-bold italic">▲ 33.35%</p>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="trade('sell')" class="bg-zinc-800 py-4 rounded-2xl font-bold text-lg active:scale-95 transition">Sell</button>
+                <button onclick="trade('buy')" class="fomo-purple py-4 rounded-2xl font-bold text-lg active:scale-95 transition">Buy</button>
+            </div>
+        </div>
+    </div>
 
-      document.getElementById("modal").classList.remove("hidden");
+    <div id="view-profile" class="flex-1 flex flex-col overflow-hidden hidden">
+        <div class="p-6 flex justify-between items-start">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-purple-500 to-pink-500"></div>
+                <div>
+                    <p class="font-bold">@saxon_ratliff</p>
+                    <p class="text-xs text-zinc-500">Saxon Ratliff</p>
+                </div>
+            </div>
+            <i data-lucide="settings" class="w-6 h-6"></i>
+        </div>
+        
+        <div class="px-6 flex justify-between py-4">
+            <div class="text-center"> <p class="font-bold">77</p> <p class="text-[10px] text-zinc-500 uppercase">Trades</p> </div>
+            <div class="text-center"> <p class="font-bold">441</p> <p class="text-[10px] text-zinc-500 uppercase">Followers</p> </div>
+            <div class="text-center"> <p class="font-bold">842</p> <p class="text-[10px] text-zinc-500 uppercase">Following</p> </div>
+        </div>
 
-      // Chart
-      createChart();
-    }
+        <div class="p-6 card-dark m-6 rounded-3xl">
+            <p class="text-zinc-500 text-xs uppercase font-bold tracking-widest mb-1">Cash balance</p>
+            <p id="cash-balance" class="text-3xl font-extrabold mono italic">$33,392.12</p>
+        </div>
 
-    function createChart() {
-      const ctx = document.getElementById("priceChart");
-      if (chartInstance) chartInstance.destroy();
-      
-      const data = Array(40).fill(0).map(() => Math.random() * 100 + 50);
-      chartInstance = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: Array(40).fill(''),
-          datasets: [{ 
-            data: data, 
-            borderColor: '#a855f7', 
-            borderWidth: 3, 
-            tension: 0.4,
-            pointRadius: 0
-          }]
-        },
-        options: { plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } }
-      });
-    }
+        <div class="px-6 flex-1 overflow-y-auto">
+            <h3 class="font-bold mb-4">Open positions</h3>
+            <div id="profile-positions" class="space-y-4"></div>
+        </div>
+    </div>
 
-    function changeTimeframe(n) {
-      // Simula mudança de timeframe
-      createChart();
-    }
+    <nav class="h-20 bg-black/80 backdrop-blur-md border-t border-white/5 flex justify-around items-center px-4 fixed bottom-0 w-full max-w-md">
+        <button onclick="changeView('market')" class="nav-item nav-active"><i data-lucide="home"></i></button>
+        <button onclick="changeView('market')" class="nav-item text-zinc-500"><i data-lucide="bar-chart-2"></i></button>
+        <button onclick="changeView('profile')" class="nav-item text-zinc-500"><i data-lucide="user"></i></button>
+    </nav>
 
-    function closeModal() {
-      document.getElementById("modal").classList.add("hidden");
-      if (chartInstance) chartInstance.destroy();
-    }
+    <script>
+        // --- CONFIG & STATE ---
+        let balance = 135683.23;
+        let activeCoin = null;
+        let myPortfolio = {};
+        let coins = [];
+        
+        const REAL_COINS = ["BTC", "ETH", "SOL", "BNB", "XRP", "ADA", "DOGE", "AVAX", "DOT", "LINK", "MATIC", "LTC", "SHIB", "TRX", "DAI"];
+        const MEME_NAMES = ["CHILLGUY", "PEPE", "MOG", "MOODENG", "GOAT", "TRUMP", "POPCAT", "WIF", "BONK", "FLOKI", "BOME", "MYRO", "SLERF", "MEW", "GIGA", "ZEREBRO", "FARTCOIN", "AI16Z", "SPX6900", "BODEN"];
 
-    function buyFromModal() {
-      alert(`✅ Compraste ${currentCoin.symbol} com sucesso!`);
-      userBalance -= 500;
-      document.getElementById("balance").textContent = userBalance;
-      closeModal();
-    }
-
-    function sellFromModal() {
-      alert(`💰 Vendeste ${currentCoin.symbol} com lucro!`);
-      closeModal();
-    }
-
-    function createNewCoin() {
-      const name = document.getElementById("c-name").value || "NewMeme";
-      const symbol = document.getElementById("c-symbol").value || "$NEW";
-      coins.unshift({
-        id: Date.now(),
-        name: name,
-        symbol: symbol,
-        price: 0.00042,
-        change: 420,
-        mc: "4.2M",
-        vol: "890K",
-        holders: "12K",
-        warning: "High Risk",
-        logo: "🆕"
-      });
-      renderCoinList();
-      alert(`🚀 ${symbol} lançada com sucesso!`);
-      switchTab(0);
-    }
-
-    function switchTab(n) {
-      document.querySelectorAll('[id^="screen-"]').forEach(s => s.classList.add("hidden"));
-      document.getElementById(`screen-${n}`).classList.remove("hidden");
-      document.querySelectorAll('button[id^="tab-"]').forEach(b => b.classList.remove("tab-active"));
-      document.getElementById(`tab-${n}`).classList.add("tab-active");
-    }
-
-    // Atualiza preços em tempo real
-    function liveUpdate() {
-      coins.forEach(c => {
-        if (Math.random() > 0.6) {
-          c.change = parseFloat((Math.random()*40 - 15).toFixed(1));
-          c.price = parseFloat((c.price * (1 + c.change/100)).toFixed(c.price < 1 ? 8 : 0));
+        // --- CORE ENGINES ---
+        function init() {
+            lucide.createIcons();
+            generateAllCoins();
+            updateMarketUI();
+            startPriceEngine();
         }
-      });
-      renderCoinList();
-    }
 
-    window.onload = () => {
-      renderCoinList();
-      setInterval(liveUpdate, 3000);
-    };
-  </script>
+        function generateAllCoins() {
+            // Criar 15 moedas reais estáveis
+            REAL_COINS.forEach(n => coins.push(createCoin(n, false)));
+            // Criar 35+ memecoins
+            for(let i=0; i<40; i++) {
+                const name = i < MEME_NAMES.length ? MEME_NAMES[i] : `MEME_${i}`;
+                coins.push(createCoin(name, true));
+            }
+        }
+
+        function createCoin(name, isMeme) {
+            const isAntiRug = isMeme && Math.random() > 0.6; // 40% são seguras
+            return {
+                id: Math.random().toString(36).substr(2, 9),
+                name,
+                price: isMeme ? (Math.random() * 0.01) : (20 + Math.random() * 60000),
+                change: 3.35,
+                isMeme,
+                isAntiRug,
+                isRugged: false,
+                mcap: isMeme ? (50 + Math.random() * 500) : (1000 + Math.random() * 900000),
+                createdAt: Date.now(),
+                history: Array.from({length: 20}, () => 50 + Math.random() * 50),
+                dots: [] // Para guardar pontos de compra/venda no gráfico
+            };
+        }
+
+        // --- CUSTOM CHART RENDERER (SVG) ---
+        function renderCustomChart() {
+            const svg = document.getElementById('custom-chart');
+            const pathLine = document.getElementById('chart-path-line');
+            const pathArea = document.getElementById('chart-path-area');
+            const dotsGroup = document.getElementById('chart-dots');
+            
+            const data = activeCoin.history;
+            const width = 400;
+            const height = 200;
+            const min = Math.min(...data) * 0.95;
+            const max = Math.max(...data) * 1.05;
+            
+            const points = data.map((val, i) => ({
+                x: (i / (data.length - 1)) * width,
+                y: height - ((val - min) / (max - min)) * height
+            }));
+
+            // Criar linha curva (Cubic Bézier Approximation)
+            let d = `M ${points[0].x} ${points[0].y}`;
+            for (let i = 0; i < points.length - 1; i++) {
+                const p0 = points[i];
+                const p1 = points[i + 1];
+                const cp1x = p0.x + (p1.x - p0.x) / 2;
+                d += ` C ${cp1x} ${p0.y}, ${cp1x} ${p1.y}, ${p1.x} ${p1.y}`;
+            }
+
+            pathLine.setAttribute('d', d);
+            pathArea.setAttribute('d', d + ` L ${width} ${height} L 0 ${height} Z`);
+            
+            // Renderizar Pontos de Trade (Buy/Sell)
+            dotsGroup.innerHTML = '';
+            activeCoin.dots.forEach(dot => {
+                const dotIdx = Math.floor(Math.random() * (points.length - 2)) + 1; // Simulação de posição
+                const p = points[dotIdx];
+                const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                circle.setAttribute("cx", p.x);
+                circle.setAttribute("cy", p.y);
+                circle.setAttribute("r", "6");
+                circle.setAttribute("class", dot.type === 'buy' ? 'buy-dot' : 'sell-dot');
+                dotsGroup.appendChild(circle);
+            });
+        }
+
+        // --- SIMULATION ENGINE ---
+        function startPriceEngine() {
+            setInterval(() => {
+                const now = Date.now();
+                coins.forEach(c => {
+                    if(c.isRugged) {
+                        c.price *= 0.5;
+                        c.history.push(c.price);
+                        c.history.shift();
+                        return;
+                    }
+
+                    let vol = c.isMeme ? 0.12 : 0.002;
+                    let move = 1 + (Math.random() * vol * 2 - vol);
+                    c.price *= move;
+                    
+                    // Lógica Rug Pull
+                    if(c.isMeme && !c.isAntiRug && (now - c.createdAt) > 300000) {
+                        if(Math.random() < 0.01) { // 1% de chance de crash a cada 2s
+                            c.isRugged = true;
+                            c.price *= 0.01;
+                        }
+                    }
+
+                    c.history.push(c.price);
+                    c.history.shift();
+                });
+
+                if(activeCoin) {
+                    renderCustomChart();
+                    document.getElementById('trade-coin-price-top')?.innerText = `$${activeCoin.price.toFixed(4)}`;
+                }
+                updateMarketUI();
+                updateProfileUI();
+            }, 2000);
+        }
+
+        // --- UI FUNCTIONS ---
+        function updateMarketUI() {
+            const list = document.getElementById('coin-list');
+            list.innerHTML = '';
+            coins.forEach(c => {
+                const div = document.createElement('div');
+                div.className = "flex justify-between items-center cursor-pointer active:opacity-50 transition";
+                div.onclick = () => openTrade(c);
+                div.innerHTML = `
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-xl bg-zinc-900 flex items-center justify-center font-bold text-[10px] text-zinc-600">
+                            <img src="https://api.dicebear.com/7.x/identicon/svg?seed=${c.name}" class="rounded-xl">
+                        </div>
+                        <div>
+                            <p class="font-bold tracking-tight">${c.name} <span class="text-[10px] text-zinc-600">${c.isAntiRug ? '🛡️' : ''}</span></p>
+                            <p class="text-zinc-500 text-xs font-bold">$${(c.mcap).toFixed(2)}K MC</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="font-bold mono italic">$${c.price < 1 ? c.price.toFixed(6) : c.price.toLocaleString()}</p>
+                        <p class="${c.isRugged ? 'text-red-600' : 'text-green-500'} text-xs font-bold">▲ ${c.change}%</p>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+            document.getElementById('display-balance').innerText = `$${balance.toLocaleString()}`;
+        }
+
+        function updateProfileUI() {
+            const container = document.getElementById('profile-positions');
+            container.innerHTML = '';
+            Object.keys(myPortfolio).forEach(id => {
+                const pos = myPortfolio[id];
+                const coin = coins.find(c => c.id === id);
+                container.innerHTML += `
+                    <div class="flex justify-between items-center py-2">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-lg bg-zinc-800"></div>
+                            <div>
+                                <p class="font-bold text-sm">${coin.name}</p>
+                                <p class="text-[10px] text-zinc-500">$${pos.amount.toFixed(2)} tokens</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="font-bold text-sm">$${(pos.amount * coin.price).toFixed(2)}</p>
+                            <p class="text-green-500 text-[10px] font-bold">▲ 3.35%</p>
+                        </div>
+                    </div>
+                `;
+            });
+            document.getElementById('cash-balance').innerText = `$${balance.toLocaleString()}`;
+        }
+
+        function openTrade(coin) {
+            activeCoin = coin;
+            document.getElementById('trade-coin-name').innerText = `$${coin.name}`;
+            document.getElementById('trade-coin-mcap').innerText = `$${coin.mcap.toFixed(1)}M`;
+            document.getElementById('view-trade').classList.remove('hidden');
+            renderCustomChart();
+        }
+
+        function trade(type) {
+            const amount = 3200; // Valor fixo da imagem para simulação
+            if(type === 'buy' && balance >= amount) {
+                balance -= amount;
+                if(!myPortfolio[activeCoin.id]) myPortfolio[activeCoin.id] = { amount: 0, cost: 0 };
+                myPortfolio[activeCoin.id].amount += amount / activeCoin.price;
+                myPortfolio[activeCoin.id].cost += amount;
+                activeCoin.dots.push({ type: 'buy' });
+            } else if (type === 'sell' && myPortfolio[activeCoin.id]) {
+                balance += myPortfolio[activeCoin.id].amount * activeCoin.price;
+                delete myPortfolio[activeCoin.id];
+                activeCoin.dots.push({ type: 'sell' });
+            }
+            renderCustomChart();
+            updateProfileUI();
+        }
+
+        function changeView(v) {
+            document.getElementById('view-market').classList.toggle('hidden', v !== 'market');
+            document.getElementById('view-profile').classList.toggle('hidden', v !== 'profile');
+            document.getElementById('view-trade').classList.add('hidden');
+            
+            // Update nav colors
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.replace('fomo-text-purple', 'text-zinc-500'));
+            // logic here
+        }
+
+        window.onload = init;
+    </script>
 </body>
 </html>
