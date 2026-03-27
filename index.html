@@ -1,252 +1,284 @@
 <!DOCTYPE html>
 <html lang="pt">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RugPump | Simulador de FOMO</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
-    <style>
-        body { background-color: #09090b; color: #fafafa; font-family: 'Inter', sans-serif; }
-        .neon-green { color: #22c55e; text-shadow: 0 0 10px rgba(34, 197, 94, 0.5); }
-        .neon-red { color: #ef4444; text-shadow: 0 0 10px rgba(239, 68, 68, 0.5); }
-        .glass { background: rgba(24, 24, 27, 0.8); backdrop-filter: blur(10px); border: 1px solid #3f3f46; }
-        .fomo-pulse { animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RugPump • Pump or Rug?</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    body { font-family: 'Inter', sans-serif; }
+    .tab-active { border-bottom: 4px solid #a855f7; color: #a855f7; }
+  </style>
 </head>
-<body class="p-4">
-    <header class="flex justify-between items-center mb-6 glass p-4 rounded-2xl">
-        <h1 class="text-3xl font-black tracking-tighter italic neon-green">RUGPUMP <span class="text-white text-sm not-italic font-light ml-2">v1.0 Simulator</span></h1>
-        <div class="text-right">
-            <p class="text-gray-400 text-xs uppercase tracking-widest">Saldo Disponível</p>
-            <p id="balance" class="text-2xl font-bold">$10,000.00</p>
-        </div>
-    </header>
+<body class="bg-[#1a0f2e] text-white min-h-screen">
 
-    <div class="grid grid-cols-12 gap-6">
-        <div class="col-span-12 lg:col-span-3 space-y-4">
-            <div class="glass p-4 rounded-xl">
-                <button onclick="createMemecoin()" class="w-full bg-green-600 hover:bg-green-500 py-3 rounded-lg font-bold transition-all mb-4">
-                    + LANÇAR NOVA MEMECOIN
-                </button>
-                <h2 class="text-sm font-semibold mb-3 text-gray-500 uppercase">Mercado Live</h2>
-                <div id="coin-list" class="space-y-2 overflow-y-auto max-h-[500px] pr-2">
-                    </div>
-            </div>
-        </div>
-
-        <div class="col-span-12 lg:col-span-6 space-y-6">
-            <div class="glass p-4 rounded-xl relative">
-                <div class="flex justify-between items-center mb-4">
-                    <div>
-                        <h2 id="active-coin-name" class="text-2xl font-bold">---</h2>
-                        <div id="danger-badge" class="hidden bg-red-900 text-red-200 text-[10px] px-2 py-1 rounded inline-block font-bold">ALTO RISCO (70%)</div>
-                    </div>
-                    <div class="flex space-x-2">
-                        <button class="px-3 py-1 bg-zinc-800 rounded text-xs hover:bg-zinc-700">LIVE</button>
-                        <button class="px-3 py-1 bg-zinc-800 rounded text-xs hover:bg-zinc-700">1H</button>
-                        <button class="px-3 py-1 bg-zinc-800 rounded text-xs hover:bg-zinc-700">4H</button>
-                    </div>
-                </div>
-                <div id="chart-container" class="w-full h-[400px]"></div>
-                
-                <div class="grid grid-cols-2 gap-4 mt-6">
-                    <button onclick="buyAction()" class="bg-zinc-100 text-black py-4 rounded-xl font-black text-lg hover:scale-[1.02] active:scale-95 transition-all">COMPRAR</button>
-                    <button onclick="rugPullAction()" class="bg-red-600 text-white py-4 rounded-xl font-black text-lg hover:bg-red-500 fomo-pulse">VENDER TUDO (RUG)</button>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-3 gap-4">
-                <div class="glass p-4 rounded-xl text-center">
-                    <p class="text-xs text-gray-500">Market Cap</p>
-                    <p id="stat-mcap" class="font-bold text-lg">$0</p>
-                </div>
-                <div class="glass p-4 rounded-xl text-center">
-                    <p class="text-xs text-gray-500">Volume (24h)</p>
-                    <p id="stat-vol" class="font-bold text-lg">$0</p>
-                </div>
-                <div class="glass p-4 rounded-xl text-center">
-                    <p class="text-xs text-gray-500">Holders</p>
-                    <p id="stat-holders" class="font-bold text-lg">0</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-span-12 lg:col-span-3 space-y-4">
-            <div class="glass p-4 rounded-xl">
-                <h3 class="font-bold mb-4 border-b border-zinc-700 pb-2">Meu Portfolio</h3>
-                <div id="portfolio-list" class="text-sm space-y-3">
-                    <p class="text-gray-500 italic">Sem trades abertas...</p>
-                </div>
-            </div>
-            <div class="glass p-4 rounded-xl">
-                <h3 class="font-bold mb-4 border-b border-zinc-700 pb-2">Feed Global (FOMO)</h3>
-                <div id="global-feed" class="text-[10px] space-y-2 opacity-70">
-                    <p>🟢 Baleia comprou $4,500 de SOL</p>
-                    <p>🔴 User "Xpto" levou RugPull em PEPE</p>
-                </div>
-            </div>
-        </div>
+  <!-- TOP BAR -->
+  <div class="bg-[#2a1b4a] border-b border-purple-500 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <span class="text-4xl">🔥</span>
+        <h1 class="text-3xl font-bold tracking-tighter text-purple-400">RUGPUMP</h1>
+      </div>
+      <div class="flex gap-8 text-lg font-medium">
+        <button onclick="switchTab(0)" id="tab-0" class="tab-active px-6 py-2">Discover</button>
+        <button onclick="switchTab(1)" id="tab-1" class="px-6 py-2">Portfolio</button>
+        <button onclick="switchTab(2)" id="tab-2" class="px-6 py-2">Create Memecoin</button>
+        <button onclick="switchTab(3)" id="tab-3" class="px-6 py-2">Profile</button>
+      </div>
+      <div class="flex items-center gap-4">
+        <div class="bg-emerald-500 text-black px-5 py-2 rounded-3xl font-bold">$<span id="balance">18,742</span></div>
+      </div>
     </div>
+  </div>
 
-    <script>
-        // --- CONFIGURAÇÃO INICIAL ---
-        let balance = 10000;
-        let activeCoin = null;
-        let portfolio = {};
-        let coins = [
-            { id: 'btc', name: 'Bitcoin', price: 65200, isMeme: false, risk: 0, mcap: '1.2T', vol: '35B', holders: '50M' },
-            { id: 'eth', name: 'Ethereum', price: 3450, isMeme: false, risk: 0, mcap: '400B', vol: '15B', holders: '120M' },
-            { id: 'sol', name: 'Solana', price: 145, isMeme: false, risk: 0, mcap: '65B', vol: '4B', holders: '12M' },
-            { id: 'rug1', name: 'MOON_INU', price: 0.0004, isMeme: true, risk: 70, mcap: '150K', vol: '20K', holders: '450', createdAt: Date.now() }
-        ];
+  <!-- DISCOVER -->
+  <div id="screen-0" class="max-w-7xl mx-auto px-6 py-8">
+    <h2 class="text-4xl font-bold mb-8">Trending • Pump or Rug?</h2>
+    <div id="coin-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+  </div>
 
-        // --- INICIALIZAÇÃO DO GRÁFICO (TradingView) ---
-        const chart = LightweightCharts.createChart(document.getElementById('chart-container'), {
-            layout: { backgroundColor: 'transparent', textColor: '#d1d5db' },
-            grid: { vertLines: { color: '#27272a' }, horzLines: { color: '#27272a' } },
-            crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-            rightPriceScale: { borderColor: '#3f3f46' },
-            timeScale: { borderColor: '#3f3f46' },
-        });
+  <!-- PORTFOLIO -->
+  <div id="screen-1" class="hidden max-w-7xl mx-auto px-6 py-8">
+    <h2 class="text-4xl font-bold mb-8">Portfolio</h2>
+    <div class="bg-[#2a1b4a] rounded-3xl p-8 mb-8">
+      <p class="text-purple-300">Total Value</p>
+      <p id="portfolio-value" class="text-6xl font-bold">$24,893 <span class="text-emerald-400 text-2xl">+18.4%</span></p>
+    </div>
+    <h3 class="text-xl mb-4">Open Positions</h3>
+    <div id="open-positions" class="space-y-4"></div>
+  </div>
 
-        const candleSeries = chart.addCandlestickSeries({
-            upColor: '#22c55e', downColor: '#ef4444', borderVisible: false, wickUpColor: '#22c55e', wickDownColor: '#ef4444'
-        });
+  <!-- CREATE -->
+  <div id="screen-2" class="hidden max-w-7xl mx-auto px-6 py-8">
+    <h2 class="text-4xl font-bold mb-8">Criar Nova Memecoin</h2>
+    <div class="bg-[#2a1b4a] rounded-3xl p-10 max-w-lg mx-auto">
+      <input id="c-name" placeholder="Nome da memecoin" class="w-full bg-[#1a0f2e] rounded-2xl px-6 py-5 mb-6 text-lg">
+      <input id="c-symbol" placeholder="Símbolo ($RUGGY)" class="w-full bg-[#1a0f2e] rounded-2xl px-6 py-5 mb-8 uppercase">
+      <button onclick="createNewCoin()" class="w-full bg-purple-600 hover:bg-purple-700 py-7 text-2xl font-bold rounded-3xl">LAUNCH MEMECOIN 🔥</button>
+    </div>
+  </div>
 
-        // Gerar dados iniciais do gráfico
-        function generateChartData(basePrice) {
-            let data = [];
-            let time = Math.floor(Date.now() / 1000) - 100 * 60;
-            for (let i = 0; i < 100; i++) {
-                const open = basePrice * (1 + (Math.random() - 0.5) * 0.02);
-                const high = open * 1.01;
-                const low = open * 0.99;
-                const close = open * (1 + (Math.random() - 0.5) * 0.02);
-                data.push({ time: time + i * 60, open, high, low, close });
-            }
-            return data;
+  <!-- PROFILE -->
+  <div id="screen-3" class="hidden max-w-7xl mx-auto px-6 py-8">
+    <h2 class="text-4xl font-bold mb-8">Meu Perfil</h2>
+    <div id="profile-content" class="bg-[#2a1b4a] rounded-3xl p-8 text-center">
+      <p class="text-purple-300">Trades fechadas: <span id="closed-count" class="font-bold text-3xl">27</span></p>
+      <p class="text-emerald-400 text-5xl font-bold mt-4">+ $8,421 P&L</p>
+    </div>
+  </div>
+
+  <!-- COIN DETAIL MODAL -->
+  <div id="modal" onclick="if(event.target===this)closeModal()" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-[100]">
+    <div onclick="event.stopImmediatePropagation()" class="bg-[#2a1b4a] rounded-3xl w-full max-w-2xl mx-4 p-8">
+      <div class="flex justify-between items-center mb-6">
+        <div id="modal-symbol" class="text-4xl font-bold"></div>
+        <button onclick="closeModal()" class="text-4xl">×</button>
+      </div>
+      
+      <div class="flex gap-8 mb-8">
+        <div id="modal-price" class="text-5xl font-bold"></div>
+        <div id="modal-change" class="text-3xl font-bold"></div>
+      </div>
+
+      <!-- CHART -->
+      <div class="mb-8">
+        <div class="flex gap-6 mb-4 text-sm">
+          <button onclick="changeTimeframe(0)" class="tab-active px-4 py-2" id="tf-0">LIVE</button>
+          <button onclick="changeTimeframe(1)" class="px-4 py-2" id="tf-1">1H</button>
+          <button onclick="changeTimeframe(2)" class="px-4 py-2" id="tf-2">4H</button>
+          <button onclick="changeTimeframe(3)" class="px-4 py-2" id="tf-3">1D</button>
+        </div>
+        <canvas id="priceChart" height="260"></canvas>
+      </div>
+
+      <!-- STATS -->
+      <div class="grid grid-cols-3 gap-4 text-center mb-8">
+        <div><p class="text-purple-300 text-xs">Market Cap</p><p id="modal-mc" class="font-bold"></p></div>
+        <div><p class="text-purple-300 text-xs">Volume 24h</p><p id="modal-vol" class="font-bold"></p></div>
+        <div><p class="text-purple-300 text-xs">Holders</p><p id="modal-holders" class="font-bold"></p></div>
+      </div>
+
+      <!-- WARNINGS -->
+      <div id="modal-warnings" class="mb-8"></div>
+
+      <div class="flex gap-4">
+        <button onclick="buyFromModal()" class="flex-1 bg-emerald-500 text-black py-6 text-2xl font-bold rounded-3xl">BUY</button>
+        <button onclick="sellFromModal()" class="flex-1 bg-red-500 py-6 text-2xl font-bold rounded-3xl">SELL</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ==================== 55+ COINS ====================
+    let coins = [
+      {id:1, name:"Bitcoin", symbol:"BTC", price:66234, change:1.2, mc:"1.31T", vol:"42B", holders:"48M", warning:"", logo:"₿"},
+      {id:2, name:"Ethereum", symbol:"ETH", price:2489, change:-0.8, mc:"300B", vol:"18B", holders:"32M", warning:"", logo:"Ξ"},
+      {id:3, name:"Solana", symbol:"SOL", price:148, change:4.5, mc:"68B", vol:"3.2B", holders:"12M", warning:"Low Liquidity", logo:"◎"},
+      {id:4, name:"Pepe", symbol:"PEPE", price:0.0000124, change:28, mc:"5.2B", vol:"890M", holders:"890K", warning:"Possible Scam", logo:"🐸"},
+      // ... (mais 50+ coins geradas automaticamente no código completo)
+    ];
+
+    // Gerar mais 50 memecoins automaticamente
+    const memeNames = ["MOG","GOAT","BRETT","WIF","BONK","POPCAT","CHILLGUY","MOODENG","GME","FARTCOIN","DOGE","SHIB","FLOKI","NEIRO","TURBO","AURA","MEW","BOME","MICHI","PENGU"];
+    for (let i = 5; i <= 55; i++) {
+      const meme = memeNames[Math.floor(Math.random()*memeNames.length)];
+      coins.push({
+        id: i,
+        name: meme + " Coin",
+        symbol: "$" + meme,
+        price: parseFloat((Math.random()*0.1).toFixed(8)),
+        change: parseFloat((Math.random()*120 - 40).toFixed(1)),
+        mc: (Math.random()*800 + 10).toFixed(1) + "M",
+        vol: (Math.random()*120 + 5).toFixed(1) + "M",
+        holders: Math.floor(Math.random()*1200) + "K",
+        warning: Math.random() < 0.7 ? ["Low Volume","Low Liquidity","Possible Scam","High Risk"][Math.floor(Math.random()*4)] : "",
+        logo: "🪙"
+      });
+    }
+
+    let currentCoin = null;
+    let chartInstance = null;
+    let userBalance = 18742;
+
+    function renderCoinList() {
+      const container = document.getElementById("coin-list");
+      container.innerHTML = "";
+      coins.forEach(coin => {
+        const div = document.createElement("div");
+        div.className = "bg-[#2a1b4a] rounded-3xl p-6 hover:scale-105 transition cursor-pointer";
+        div.innerHTML = `
+          <div class="flex justify-between items-center">
+            <div class="flex items-center gap-4">
+              <div class="text-4xl">${coin.logo}</div>
+              <div>
+                <p class="font-bold text-xl">${coin.symbol}</p>
+                <p class="text-purple-300">${coin.name}</p>
+              </div>
+            </div>
+            <div class="text-right">
+              <p class="font-mono text-2xl">$${coin.price < 1 ? coin.price.toFixed(8) : coin.price.toLocaleString()}</p>
+              <p class="${coin.change > 0 ? 'text-emerald-400' : 'text-red-400'} font-bold">${coin.change > 0 ? '+' : ''}${coin.change}%</p>
+            </div>
+          </div>
+          ${coin.warning ? `<div class="mt-4 text-xs bg-red-500/20 text-red-400 px-4 py-1 rounded-2xl inline-block">${coin.warning}</div>` : ''}
+          <div class="grid grid-cols-3 text-xs mt-6 text-purple-300">
+            <div>MC <span class="font-bold text-white">${coin.mc}</span></div>
+            <div>Vol <span class="font-bold text-white">${coin.vol}</span></div>
+            <div>Holders <span class="font-bold text-white">${coin.holders}</span></div>
+          </div>
+        `;
+        div.onclick = () => openCoinModal(coin);
+        container.appendChild(div);
+      });
+    }
+
+    function openCoinModal(coin) {
+      currentCoin = coin;
+      document.getElementById("modal-symbol").innerHTML = `${coin.logo} ${coin.symbol}`;
+      document.getElementById("modal-price").textContent = `$${coin.price < 1 ? coin.price.toFixed(8) : coin.price.toLocaleString()}`;
+      document.getElementById("modal-change").innerHTML = `<span class="${coin.change > 0 ? 'text-emerald-400' : 'text-red-400'}">${coin.change > 0 ? '▲' : '▼'} ${coin.change}%</span>`;
+      
+      // Warnings
+      const warnDiv = document.getElementById("modal-warnings");
+      warnDiv.innerHTML = coin.warning ? `<div class="bg-red-500/10 border border-red-500 text-red-400 px-6 py-4 rounded-2xl text-center">${coin.warning}</div>` : "";
+
+      document.getElementById("modal-mc").textContent = coin.mc;
+      document.getElementById("modal-vol").textContent = coin.vol;
+      document.getElementById("modal-holders").textContent = coin.holders;
+
+      document.getElementById("modal").classList.remove("hidden");
+
+      // Chart
+      createChart();
+    }
+
+    function createChart() {
+      const ctx = document.getElementById("priceChart");
+      if (chartInstance) chartInstance.destroy();
+      
+      const data = Array(40).fill(0).map(() => Math.random() * 100 + 50);
+      chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: Array(40).fill(''),
+          datasets: [{ 
+            data: data, 
+            borderColor: '#a855f7', 
+            borderWidth: 3, 
+            tension: 0.4,
+            pointRadius: 0
+          }]
+        },
+        options: { plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } }
+      });
+    }
+
+    function changeTimeframe(n) {
+      // Simula mudança de timeframe
+      createChart();
+    }
+
+    function closeModal() {
+      document.getElementById("modal").classList.add("hidden");
+      if (chartInstance) chartInstance.destroy();
+    }
+
+    function buyFromModal() {
+      alert(`✅ Compraste ${currentCoin.symbol} com sucesso!`);
+      userBalance -= 500;
+      document.getElementById("balance").textContent = userBalance;
+      closeModal();
+    }
+
+    function sellFromModal() {
+      alert(`💰 Vendeste ${currentCoin.symbol} com lucro!`);
+      closeModal();
+    }
+
+    function createNewCoin() {
+      const name = document.getElementById("c-name").value || "NewMeme";
+      const symbol = document.getElementById("c-symbol").value || "$NEW";
+      coins.unshift({
+        id: Date.now(),
+        name: name,
+        symbol: symbol,
+        price: 0.00042,
+        change: 420,
+        mc: "4.2M",
+        vol: "890K",
+        holders: "12K",
+        warning: "High Risk",
+        logo: "🆕"
+      });
+      renderCoinList();
+      alert(`🚀 ${symbol} lançada com sucesso!`);
+      switchTab(0);
+    }
+
+    function switchTab(n) {
+      document.querySelectorAll('[id^="screen-"]').forEach(s => s.classList.add("hidden"));
+      document.getElementById(`screen-${n}`).classList.remove("hidden");
+      document.querySelectorAll('button[id^="tab-"]').forEach(b => b.classList.remove("tab-active"));
+      document.getElementById(`tab-${n}`).classList.add("tab-active");
+    }
+
+    // Atualiza preços em tempo real
+    function liveUpdate() {
+      coins.forEach(c => {
+        if (Math.random() > 0.6) {
+          c.change = parseFloat((Math.random()*40 - 15).toFixed(1));
+          c.price = parseFloat((c.price * (1 + c.change/100)).toFixed(c.price < 1 ? 8 : 0));
         }
+      });
+      renderCoinList();
+    }
 
-        // --- LÓGICA DO JOGO ---
-        function updateUI() {
-            document.getElementById('balance').innerText = `$${balance.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
-            
-            const list = document.getElementById('coin-list');
-            list.innerHTML = '';
-            coins.forEach(coin => {
-                const div = document.createElement('div');
-                div.className = `p-3 rounded-lg flex justify-between items-center cursor-pointer hover:bg-zinc-800 transition ${activeCoin?.id === coin.id ? 'bg-zinc-800 ring-1 ring-green-500' : 'bg-zinc-900'}`;
-                div.onclick = () => selectCoin(coin);
-                div.innerHTML = `
-                    <div>
-                        <p class="font-bold">${coin.name}</p>
-                        <p class="text-[10px] text-gray-500 uppercase">${coin.isMeme ? 'Memecoin' : 'Real Asset'}</p>
-                    </div>
-                    <p class="${coin.isMeme ? 'neon-red' : 'neon-green'} font-mono">$${coin.price.toFixed(coin.price < 1 ? 6 : 2)}</p>
-                `;
-                list.appendChild(div);
-            });
-
-            const portList = document.getElementById('portfolio-list');
-            portList.innerHTML = '';
-            Object.keys(portfolio).forEach(id => {
-                const p = portfolio[id];
-                const coin = coins.find(c => c.id === id);
-                const profit = (coin.price * p.amount) - p.cost;
-                portList.innerHTML += `
-                    <div class="flex justify-between border-l-2 border-green-500 pl-2">
-                        <span>${coin.name}</span>
-                        <span class="${profit >= 0 ? 'text-green-500' : 'text-red-500'} font-bold">${profit >= 0 ? '+' : ''}${profit.toFixed(2)}</span>
-                    </div>
-                `;
-            });
-        }
-
-        function selectCoin(coin) {
-            activeCoin = coin;
-            document.getElementById('active-coin-name').innerText = coin.name;
-            document.getElementById('danger-badge').style.display = coin.isMeme ? 'inline-block' : 'none';
-            document.getElementById('stat-mcap').innerText = `$${coin.mcap}`;
-            document.getElementById('stat-vol').innerText = `$${coin.vol}`;
-            document.getElementById('stat-holders').innerText = coin.holders;
-            candleSeries.setData(generateChartData(coin.price));
-            updateUI();
-        }
-
-        function createMemecoin() {
-            const name = prompt("Nome da tua Memecoin (ex: ROCKET_PUMP):");
-            if(!name) return;
-            const newCoin = {
-                id: 'meme-' + Date.now(),
-                name: name.toUpperCase(),
-                price: 0.0001,
-                isMeme: true,
-                risk: Math.random() < 0.7 ? 70 : 0,
-                mcap: '10K',
-                vol: '5K',
-                holders: '1',
-                createdAt: Date.now()
-            };
-            coins.unshift(newCoin);
-            selectCoin(newCoin);
-        }
-
-        function buyAction() {
-            if(!activeCoin) return;
-            const amount = 1000;
-            if(balance >= amount) {
-                balance -= amount;
-                if(!portfolio[activeCoin.id]) portfolio[activeCoin.id] = { amount: 0, cost: 0 };
-                portfolio[activeCoin.id].amount += amount / activeCoin.price;
-                portfolio[activeCoin.id].cost += amount;
-                updateUI();
-            }
-        }
-
-        function rugPullAction() {
-            if(!activeCoin || !portfolio[activeCoin.id]) return;
-            const sellValue = portfolio[activeCoin.id].amount * activeCoin.price;
-            balance += sellValue;
-            
-            // Simular o RugPull após a venda do jogador se for meme de risco
-            if(activeCoin.isMeme && activeCoin.risk > 0) {
-                activeCoin.price *= 0.01; // Cai 99%
-                activeCoin.mcap = "REKT";
-                candleSeries.setData(generateChartData(activeCoin.price));
-            }
-            
-            delete portfolio[activeCoin.id];
-            updateUI();
-        }
-
-        // Loop de Preços Live
-        setInterval(() => {
-            coins.forEach(c => {
-                const vol = c.isMeme ? 0.15 : 0.01;
-                c.price *= (1 + (Math.random() - 0.5) * vol);
-                
-                // Lógica dos 5 minutos: Após 5 min, se for de risco, chance de crashar sozinha
-                if(c.isMeme && c.risk > 0 && (Date.now() - c.createdAt) > 300000) {
-                    if(Math.random() < 0.05) c.price *= 0.5; // Começa a morrer
-                }
-            });
-            if(activeCoin) {
-                const lastData = {
-                    time: Math.floor(Date.now() / 1000),
-                    open: activeCoin.price,
-                    high: activeCoin.price * 1.02,
-                    low: activeCoin.price * 0.98,
-                    close: activeCoin.price
-                };
-                candleSeries.update(lastData);
-            }
-            updateUI();
-        }, 2000);
-
-        // Iniciar com BTC
-        selectCoin(coins[0]);
-    </script>
+    window.onload = () => {
+      renderCoinList();
+      setInterval(liveUpdate, 3000);
+    };
+  </script>
 </body>
 </html>
