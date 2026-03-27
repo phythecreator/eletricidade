@@ -1,362 +1,551 @@
 <!DOCTYPE html>
 <html lang="pt">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RugPump • Pump or Rug</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-    body { font-family: 'Inter', sans-serif; }
-    .value { color: #ffffff; }
-    .tab-active { border-bottom: 4px solid #c026d3; color: #c026d3; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>RugPump | The Final FOMO Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --fomo-purple: #7B3FE4;
+            --true-black: #000000;
+            --card-gray: #0D0D0D;
+            --neon-green: #22c55e;
+            --rug-red: #ef4444;
+        }
+
+        body { 
+            background-color: var(--true-black); 
+            color: white; 
+            font-family: 'Inter', sans-serif;
+            user-select: none;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        /* Animations */
+        @keyframes pulse-purple {
+            0% { box-shadow: 0 0 0 0 rgba(123, 63, 228, 0.4); }
+            70% { box-shadow: 0 0 0 15px rgba(123, 63, 228, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(123, 63, 228, 0); }
+        }
+
+        .fomo-btn {
+            background-color: var(--fomo-purple);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .fomo-btn:active { transform: scale(0.95); filter: brightness(1.2); }
+
+        .rug-shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+
+        /* Chart Styles */
+        .chart-line { fill: none; stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; transition: all 0.5s ease; }
+        .chart-area { fill: url(#chartGradient); opacity: 0.15; transition: all 0.5s ease; }
+        .buy-dot { fill: var(--neon-green); stroke: black; stroke-width: 2; }
+        .sell-dot { fill: var(--rug-red); stroke: white; stroke-width: 2; }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 0px; background: transparent; }
+
+        .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.05); }
+        
+        .nav-icon { color: #52525b; transition: color 0.3s; }
+        .nav-active { color: var(--fomo-purple) !important; }
+
+        .tab-content { display: none; height: 100%; flex-direction: column; }
+        .tab-active { display: flex; }
+    </style>
 </head>
-<body class="bg-[#0f0a1f] text-white min-h-screen">
+<body class="max-w-md mx-auto h-screen relative flex flex-col border-x border-white/5">
 
-  <!-- TOP BAR -->
-  <div class="bg-[#1a1433] border-b border-purple-600 sticky top-0 z-50">
-    <div class="max-w-7xl mx-auto px-8 py-5 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <span class="text-5xl">🔥</span>
-        <h1 class="text-4xl font-bold tracking-tighter">RUGPUMP</h1>
-      </div>
-      <div class="flex gap-10 text-lg font-medium">
-        <button onclick="switchTab(0)" id="tab-0" class="tab-active px-6 py-2">Discover</button>
-        <button onclick="switchTab(1)" id="tab-1" class="px-6 py-2">Portfolio</button>
-        <button onclick="switchTab(2)" id="tab-2" class="px-6 py-2">Create</button>
-        <button onclick="switchTab(3)" id="tab-3" class="px-6 py-2">Profile</button>
-      </div>
-      <div class="flex items-center gap-6">
-        <div class="text-right">
-          <p class="text-purple-300 text-sm">Saldo</p>
-          <p id="balance" class="value text-3xl font-bold">$18,742</p>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- DISCOVER -->
-  <div id="screen-0" class="max-w-7xl mx-auto px-8 py-10">
-    <h2 class="text-4xl font-semibold mb-8">Market Live</h2>
-    <div id="coin-list" class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6"></div>
-  </div>
-
-  <!-- PORTFOLIO -->
-  <div id="screen-1" class="hidden max-w-7xl mx-auto px-8 py-10">
-    <h2 class="text-4xl font-semibold mb-8">Portfolio</h2>
-    <div class="bg-[#1a1433] rounded-3xl p-8 mb-10">
-      <div class="flex justify-between">
-        <div>
-          <p class="text-purple-300">Valor Total</p>
-          <p id="portfolio-total" class="value text-6xl font-bold">$24,893</p>
-        </div>
-        <div class="text-right">
-          <p class="text-emerald-400 text-2xl font-semibold" id="portfolio-pnl">+$4,821 (+23.9%)</p>
-        </div>
-      </div>
-    </div>
-    <h3 class="text-xl mb-5">Posições Abertas</h3>
-    <div id="open-positions" class="space-y-4"></div>
-  </div>
-
-  <!-- CREATE -->
-  <div id="screen-2" class="hidden max-w-7xl mx-auto px-8 py-10">
-    <h2 class="text-4xl font-semibold mb-8">Criar Nova Memecoin</h2>
-    <div class="max-w-md mx-auto bg-[#1a1433] rounded-3xl p-10">
-      <input id="create-name" placeholder="Nome da memecoin" class="w-full bg-[#0f0a1f] rounded-2xl px-6 py-5 mb-4 text-lg">
-      <input id="create-symbol" placeholder="Símbolo (ex: $GOAT)" class="w-full bg-[#0f0a1f] rounded-2xl px-6 py-5 mb-8 uppercase">
-      <button onclick="createMemecoin()" class="w-full bg-gradient-to-r from-purple-600 to-pink-600 py-7 text-2xl font-bold rounded-3xl">LAUNCH 🔥</button>
-    </div>
-  </div>
-
-  <!-- PROFILE -->
-  <div id="screen-3" class="hidden max-w-7xl mx-auto px-8 py-10">
-    <h2 class="text-4xl font-semibold mb-8">Perfil</h2>
-    <div class="bg-[#1a1433] rounded-3xl p-10 text-center">
-      <p class="text-purple-300">Trades fechadas</p>
-      <p class="text-6xl font-bold value mt-2" id="closed-trades">31</p>
-      <p class="text-emerald-400 text-3xl mt-8">+ $11,284 lucro total</p>
-    </div>
-  </div>
-
-  <!-- COIN MODAL -->
-  <div id="modal" onclick="if(event.target===this)closeModal()" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-[100]">
-    <div onclick="event.stopImmediatePropagation()" class="bg-[#1a1433] rounded-3xl w-full max-w-3xl mx-4 p-8">
-      <div class="flex justify-between mb-6">
-        <div id="modal-header" class="flex items-center gap-4 text-3xl font-bold"></div>
-        <button onclick="closeModal()" class="text-5xl leading-none">×</button>
-      </div>
-
-      <div class="flex justify-between items-baseline mb-8">
-        <div id="modal-price" class="text-6xl font-bold value"></div>
-        <div id="modal-change" class="text-4xl font-bold"></div>
-      </div>
-
-      <!-- TIMEFRAMES -->
-      <div class="flex gap-8 mb-4 text-sm font-medium">
-        <button onclick="setTimeframe(0)" id="tf-0" class="tab-active">LIVE</button>
-        <button onclick="setTimeframe(1)" id="tf-1">1H</button>
-        <button onclick="setTimeframe(2)" id="tf-2">4H</button>
-        <button onclick="setTimeframe(3)" id="tf-3">1D</button>
-      </div>
-
-      <canvas id="priceChart" class="mb-8" height="320"></canvas>
-
-      <!-- STATS -->
-      <div class="grid grid-cols-3 gap-6 mb-10 text-center">
-        <div><p class="text-purple-300 text-sm">Market Cap</p><p id="modal-mc" class="value text-2xl font-semibold"></p></div>
-        <div><p class="text-purple-300 text-sm">Volume 24h</p><p id="modal-vol" class="value text-2xl font-semibold"></p></div>
-        <div><p class="text-purple-300 text-sm">Holders</p><p id="modal-holders" class="value text-2xl font-semibold"></p></div>
-      </div>
-
-      <div id="modal-warning" class="mb-8"></div>
-
-      <div class="flex gap-4">
-        <button onclick="buyCoin()" class="flex-1 bg-emerald-500 text-black py-6 text-3xl font-bold rounded-3xl">BUY</button>
-        <button onclick="sellCoin()" class="flex-1 bg-red-500 py-6 text-3xl font-bold rounded-3xl">SELL</button>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    let coins = [ /* 55+ coins com dados realistas */ 
-      {id:1, name:"Bitcoin", symbol:"BTC", price:66234, change:0.8, mc:"1.31T", vol:"41.8B", holders:"48.2M", warning:"", logo:"₿", volatility:0.3},
-      {id:2, name:"Ethereum", symbol:"ETH", price:2489, change:-0.4, mc:"299B", vol:"17.9B", holders:"31.8M", warning:"", logo:"Ξ", volatility:0.5},
-      {id:3, name:"Solana", symbol:"SOL", price:148.7, change:5.2, mc:"68.4B", vol:"3.1B", holders:"11.9M", warning:"Low Liquidity", logo:"◎", volatility:1.8},
-      // ... (mais 52 memecoins geradas automaticamente)
-    ];
-
-    const memeSymbols = ["PEPE","WIF","BONK","MOG","GOAT","BRETT","POPCAT","MOODENG","CHILLGUY","FARTCOIN","DOGE","SHIB","NEIRO","TURBO"];
-    for (let i = 4; i <= 55; i++) {
-      const sym = memeSymbols[Math.floor(Math.random() * memeSymbols.length)];
-      coins.push({
-        id: i,
-        name: sym + " Coin",
-        symbol: "$" + sym,
-        price: parseFloat((Math.random() * 0.15).toFixed(8)),
-        change: parseFloat((Math.random() * 140 - 45).toFixed(1)),
-        mc: (Math.random() * 1200 + 8).toFixed(1) + "M",
-        vol: (Math.random() * 180 + 2).toFixed(1) + "M",
-        holders: Math.floor(Math.random()*800 + 50) + "K",
-        warning: Math.random() < 0.7 ? ["Low Volume","Low Liquidity","Possible Scam","High Risk"][Math.floor(Math.random()*4)] : "",
-        logo: "🪙",
-        volatility: 3.5
-      });
-    }
-
-    let userBalance = 18742;
-    let portfolio = []; // {coinId, amount, avgBuyPrice}
-    let closedTrades = 31;
-    let currentCoin = null;
-    let chart = null;
-
-    function renderDiscover() {
-      const container = document.getElementById("coin-list");
-      container.innerHTML = "";
-      coins.forEach(coin => {
-        const card = document.createElement("div");
-        card.className = "bg-[#1a1433] hover:bg-[#221c3f] rounded-3xl p-7 cursor-pointer transition";
-        card.innerHTML = `
-          <div class="flex items-center gap-4">
-            <div class="text-5xl">${coin.logo}</div>
-            <div class="flex-1">
-              <p class="text-2xl font-bold">${coin.symbol}</p>
-              <p class="text-purple-300">${coin.name}</p>
-            </div>
-            <div class="text-right">
-              <p class="value text-3xl font-mono">$${coin.price < 1 ? coin.price.toFixed(8) : coin.price.toLocaleString()}</p>
-              <p class="${coin.change >= 0 ? 'text-emerald-400' : 'text-red-400'} text-xl font-bold">${coin.change >= 0 ? '+' : ''}${coin.change}%</p>
-            </div>
-          </div>
-          ${coin.warning ? `<div class="mt-5 inline-block bg-red-500/10 text-red-400 text-xs px-4 py-1.5 rounded-2xl">${coin.warning}</div>` : ''}
-          <div class="mt-6 grid grid-cols-3 text-xs text-purple-300">
-            <div>MC <span class="value">${coin.mc}</span></div>
-            <div>Vol <span class="value">${coin.vol}</span></div>
-            <div>Holders <span class="value">${coin.holders}</span></div>
-          </div>
-        `;
-        card.onclick = () => openModal(coin);
-        container.appendChild(card);
-      });
-    }
-
-    function openModal(coin) {
-      currentCoin = coin;
-      document.getElementById("modal-header").innerHTML = `${coin.logo} ${coin.symbol} <span class="text-purple-300 text-2xl ml-3">${coin.name}</span>`;
-      document.getElementById("modal-price").textContent = `$${coin.price < 1 ? coin.price.toFixed(8) : coin.price.toLocaleString()}`;
-      document.getElementById("modal-change").innerHTML = `<span class="${coin.change >= 0 ? 'text-emerald-400' : 'text-red-400'}">${coin.change >= 0 ? '▲' : '▼'} ${coin.change}%</span>`;
-      
-      document.getElementById("modal-mc").textContent = coin.mc;
-      document.getElementById("modal-vol").textContent = coin.vol;
-      document.getElementById("modal-holders").textContent = coin.holders;
-
-      const warn = document.getElementById("modal-warning");
-      warn.innerHTML = coin.warning ? `<div class="bg-red-500/10 border border-red-400 text-red-400 px-6 py-4 rounded-3xl text-center">${coin.warning}</div>` : "";
-
-      document.getElementById("modal").classList.remove("hidden");
-      createRealChart(coin);
-    }
-
-    function createRealChart(coin) {
-      const ctx = document.getElementById("priceChart");
-      if (chart) chart.destroy();
-
-      const basePrice = coin.price;
-      const volatility = coin.volatility || 1;
-      const dataPoints = Array.from({length: 50}, (_, i) => {
-        const variation = (Math.random() - 0.5) * volatility * 2;
-        return parseFloat((basePrice * (1 + variation * (i/30))).toFixed(coin.price < 1 ? 8 : 2));
-      });
-
-      chart = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: Array(50).fill(''),
-          datasets: [{
-            data: dataPoints,
-            borderColor: '#c026d3',
-            borderWidth: 3.5,
-            tension: 0.35,
-            pointRadius: 0,
-            fill: true,
-            backgroundColor: 'rgba(192, 38, 211, 0.08)'
-          }]
-        },
-        options: {
-          plugins: { legend: { display: false } },
-          scales: {
-            y: { grid: { color: '#2a1f4a' }, ticks: { color: '#a3a3a3', font: { size: 12 } } },
-            x: { grid: { color: '#2a1f4a' }, ticks: { display: false } }
-          }
-        }
-      });
-    }
-
-    function buyCoin() {
-      const amount = 100; // valor fixo para simplicidade (podes mudar)
-      const cost = amount * currentCoin.price;
-      if (userBalance < cost) return alert("Saldo insuficiente!");
-
-      userBalance -= cost;
-      const existing = portfolio.find(p => p.coinId === currentCoin.id);
-      if (existing) {
-        existing.amount += amount;
-        existing.avgBuyPrice = (existing.avgBuyPrice * existing.amount + currentCoin.price * amount) / (existing.amount + amount);
-      } else {
-        portfolio.push({coinId: currentCoin.id, amount: amount, avgBuyPrice: currentCoin.price});
-      }
-
-      document.getElementById("balance").textContent = userBalance.toLocaleString();
-      alert(`✅ Compraste ${amount} ${currentCoin.symbol}`);
-      createRealChart(currentCoin); // atualiza gráfico com nova compra
-      closeModal();
-      renderPortfolio();
-    }
-
-    function sellCoin() {
-      const holding = portfolio.find(p => p.coinId === currentCoin.id);
-      if (!holding) return alert("Não tens esta coin!");
-
-      const revenue = holding.amount * currentCoin.price;
-      userBalance += revenue;
-      const pnl = (currentCoin.price - holding.avgBuyPrice) * holding.amount;
-
-      closedTrades++;
-      portfolio = portfolio.filter(p => p.coinId !== currentCoin.id);
-
-      document.getElementById("balance").textContent = userBalance.toLocaleString();
-      alert(`💰 Vendeste tudo! Lucro: $${pnl.toFixed(2)}`);
-      closeModal();
-      renderPortfolio();
-    }
-
-    function renderPortfolio() {
-      const container = document.getElementById("open-positions");
-      container.innerHTML = portfolio.length === 0 
-        ? `<p class="text-purple-300">Nenhuma posição aberta</p>`
-        : portfolio.map(pos => {
-            const coin = coins.find(c => c.id === pos.coinId);
-            const currentValue = pos.amount * coin.price;
-            const pnl = currentValue - (pos.amount * pos.avgBuyPrice);
-            return `
-              <div class="bg-[#1a1433] rounded-3xl p-6 flex justify-between items-center">
-                <div>
-                  <span class="font-bold text-xl">${coin.symbol}</span>
-                  <span class="ml-4 text-purple-300">${pos.amount} unidades</span>
+    <div id="trade-modal" class="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md hidden flex flex-col">
+        <div class="flex-1 overflow-y-auto pb-32">
+            <header class="p-6 flex justify-between items-center sticky top-0 bg-black/50 z-10">
+                <button onclick="closeTrade()"><i data-lucide="x" class="w-8 h-8 text-white"></i></button>
+                <div class="text-center">
+                    <p id="m-coin-symbol" class="font-black text-xl italic uppercase tracking-tighter">BTC</p>
+                    <p id="m-coin-status" class="text-[10px] font-bold text-zinc-500 tracking-widest uppercase">Live Market</p>
                 </div>
+                <div class="w-8"></div>
+            </header>
+
+            <div class="px-6 flex justify-between items-end mt-4 mb-8">
+                <div id="m-coin-icon" class="w-20 h-20 rounded-3xl bg-zinc-900 border border-white/10 overflow-hidden shadow-2xl shadow-purple-500/10"></div>
                 <div class="text-right">
-                  <p class="value text-2xl">$${currentValue.toFixed(2)}</p>
-                  <p class="${pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}">${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}</p>
+                    <p id="m-coin-mcap" class="text-3xl font-black italic mono">$0.00M</p>
+                    <p class="text-zinc-500 text-xs font-bold uppercase tracking-widest">Market Cap</p>
                 </div>
-                <div class="flex gap-3">
-                  <button onclick="quickBuy(${pos.coinId})" class="bg-emerald-500 text-black px-6 py-3 rounded-2xl text-sm font-bold">+ Buy</button>
-                  <button onclick="quickSell(${pos.coinId})" class="bg-red-500 px-6 py-3 rounded-2xl text-sm font-bold">Sell</button>
+            </div>
+
+            <div class="w-full h-64 relative px-2 mb-6">
+                <svg id="svg-chart" class="w-full h-full" viewBox="0 0 400 200" preserveAspectRatio="none">
+                    <defs>
+                        <linearGradient id="chartGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stop-color="var(--neon-green)" />
+                            <stop offset="100%" stop-color="transparent" />
+                        </defs>
+                    </defs>
+                    <path id="path-area" class="chart-area" d=""></path>
+                    <path id="path-line" class="chart-line" d="" stroke="var(--neon-green)"></path>
+                    <g id="chart-markers"></g>
+                </svg>
+            </div>
+
+            <div class="px-6 space-y-6">
+                <div class="flex justify-between items-center p-6 glass rounded-[32px]">
+                    <div>
+                        <p id="m-user-pos" class="text-2xl font-black italic mono">$0.00</p>
+                        <p id="m-user-tokens" class="text-[10px] text-zinc-500 font-bold">0.00 TOKENS</p>
+                    </div>
+                    <div class="text-right">
+                        <p id="m-user-pnl" class="text-xl font-black italic text-zinc-600">$0.00</p>
+                        <p id="m-user-pnl-perc" class="text-[10px] font-bold text-zinc-500 italic">0.00%</p>
+                    </div>
                 </div>
-              </div>`;
-          }).join('');
-    }
 
-    function quickBuy(id) { currentCoin = coins.find(c => c.id === id); buyCoin(); }
-    function quickSell(id) { currentCoin = coins.find(c => c.id === id); sellCoin(); }
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-black text-zinc-500 uppercase ml-2">Quantia em USD</label>
+                        <input id="trade-input" type="number" value="1000" class="w-full bg-zinc-900 border border-white/10 p-5 rounded-3xl text-xl font-black italic mono focus:ring-2 ring-purple-600 outline-none transition-all">
+                    </div>
+                    <div class="flex flex-col gap-2 pt-5">
+                        <button onclick="executeTrade('buy')" class="flex-1 fomo-btn rounded-3xl font-black text-lg uppercase tracking-tighter">Buy</button>
+                        <button onclick="executeTrade('sell')" class="flex-1 bg-zinc-800 text-white rounded-3xl font-black text-lg uppercase tracking-tighter hover:bg-zinc-700">Sell</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    function createMemecoin() {
-      const name = document.getElementById("create-name").value || "New Memecoin";
-      const symbol = document.getElementById("create-symbol").value.toUpperCase() || "$NEW";
-      coins.unshift({
-        id: Date.now(),
-        name: name,
-        symbol: symbol,
-        price: 0.00042,
-        change: 180,
-        mc: "12.4M",
-        vol: "4.8M",
-        holders: "8.2K",
-        warning: "High Risk",
-        logo: "🆕",
-        volatility: 4.5
-      });
-      renderDiscover();
-      alert(`🚀 ${symbol} lançada com sucesso!`);
-      switchTab(0);
-    }
+    <div id="tab-market" class="tab-content tab-active">
+        <header class="p-8 pb-4">
+            <div class="flex justify-between items-center mb-4">
+                <h1 class="text-4xl font-black tracking-tighter italic uppercase">Rug<span class="text-purple-600">Pump</span></h1>
+                <div class="flex gap-4">
+                    <button class="w-10 h-10 glass rounded-full flex items-center justify-center"><i data-lucide="search" class="w-5"></i></button>
+                    <button class="w-10 h-10 glass rounded-full flex items-center justify-center"><i data-lucide="bell" class="w-5"></i></button>
+                </div>
+            </div>
+            <div>
+                <p class="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Total Net Worth</p>
+                <div class="flex items-baseline gap-2">
+                    <span id="h-balance" class="text-4xl font-black italic mono">$10,000.00</span>
+                    <span class="text-green-500 text-sm font-bold italic">▲ 0.00%</span>
+                </div>
+            </div>
+        </header>
 
-    function switchTab(n) {
-      document.querySelectorAll('[id^="screen-"]').forEach(el => el.classList.add("hidden"));
-      document.getElementById(`screen-${n}`).classList.remove("hidden");
-      document.querySelectorAll('button[id^="tab-"]').forEach(el => el.classList.remove("tab-active"));
-      document.getElementById(`tab-${n}`).classList.add("tab-active");
-      if (n === 1) renderPortfolio();
-    }
+        <div class="px-8 flex gap-6 overflow-x-auto no-scrollbar border-b border-white/5 py-4 mb-4">
+            <button class="text-sm font-black uppercase tracking-tighter border-b-2 border-purple-600 pb-2">Trending</button>
+            <button class="text-sm font-black uppercase tracking-tighter text-zinc-600 pb-2">Top Gainers</button>
+            <button class="text-sm font-black uppercase tracking-tighter text-zinc-600 pb-2">Newly Listed</button>
+            <button class="text-sm font-black uppercase tracking-tighter text-zinc-600 pb-2">Anti-Rug</button>
+        </div>
 
-    function closeModal() {
-      document.getElementById("modal").classList.add("hidden");
-      if (chart) chart.destroy();
-    }
+        <div id="market-list" class="flex-1 overflow-y-auto px-8 space-y-6 pb-24">
+            </div>
+    </div>
 
-    function setTimeframe(n) {
-      document.querySelectorAll('#modal button').forEach(b => b.classList.remove("tab-active"));
-      document.getElementById(`tf-${n}`).classList.add("tab-active");
-      if (currentCoin) createRealChart(currentCoin);
-    }
+    <div id="tab-profile" class="tab-content">
+        <header class="p-8">
+            <div class="flex justify-between items-start mb-8">
+                <div class="flex items-center gap-4">
+                    <div class="w-16 h-16 rounded-3xl bg-gradient-to-br from-purple-600 to-pink-600 border-2 border-white/20 shadow-xl"></div>
+                    <div>
+                        <p class="text-2xl font-black italic tracking-tighter">@RugMaster_69</p>
+                        <p class="text-xs text-zinc-500 font-bold uppercase tracking-widest">Master Degenerate</p>
+                    </div>
+                </div>
+                <button class="w-10 h-10 glass rounded-full flex items-center justify-center"><i data-lucide="settings" class="w-5"></i></button>
+            </div>
 
-    // Atualização em tempo real
-    function livePriceUpdate() {
-      coins.forEach(coin => {
-        if (coin.volatility) {
-          const change = (Math.random() - 0.5) * coin.volatility;
-          coin.change = parseFloat(change.toFixed(1));
-          coin.price = parseFloat((coin.price * (1 + change/100)).toFixed(coin.price < 1 ? 8 : 2));
+            <div class="flex justify-between p-6 glass rounded-[32px] mb-8">
+                <div class="text-center">
+                    <p class="text-lg font-black italic mono">42</p>
+                    <p class="text-[10px] font-bold text-zinc-500 uppercase tracking-tighter">Trades</p>
+                </div>
+                <div class="h-10 w-[1px] bg-white/10"></div>
+                <div class="text-center">
+                    <p class="text-lg font-black italic mono">89%</p>
+                    <p class="text-[10px] font-bold text-zinc-500 uppercase tracking-tighter">Win Rate</p>
+                </div>
+                <div class="h-10 w-[1px] bg-white/10"></div>
+                <div class="text-center">
+                    <p class="text-lg font-black italic mono">1.2M</p>
+                    <p class="text-[10px] font-bold text-zinc-500 uppercase tracking-tighter">Score</p>
+                </div>
+            </div>
+
+            <h3 class="text-xl font-black italic uppercase tracking-tighter mb-4">Open Positions</h3>
+            <div id="portfolio-list" class="space-y-4 mb-10">
+                </div>
+
+            <h3 class="text-xl font-black italic uppercase tracking-tighter mb-4">Trade History</h3>
+            <div id="history-list" class="space-y-4 opacity-50">
+                </div>
+        </header>
+    </div>
+
+    <div id="tab-social" class="tab-content">
+        <header class="p-8">
+            <h2 class="text-3xl font-black italic uppercase tracking-tighter mb-2">Social Feed</h2>
+            <p class="text-xs text-zinc-500 font-bold uppercase tracking-widest mb-8">Don't trade alone. See the whales.</p>
+            
+            <div class="space-y-4">
+                <div class="p-6 glass rounded-[32px] border-l-4 border-green-500">
+                    <div class="flex justify-between mb-3">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-full bg-zinc-800"></div>
+                            <span class="text-sm font-black italic">@WhaleWatcher</span>
+                        </div>
+                        <span class="text-[10px] font-bold text-green-500">PROFIT +$142,000</span>
+                    </div>
+                    <p class="text-sm text-zinc-400">Just dumped <span class="text-white font-bold">$SOL</span> to buy <span class="text-white font-bold">$CHILLGUY</span>. FOMO is real! 🚀</p>
+                </div>
+
+                <div class="p-6 glass rounded-[32px] border-l-4 border-red-500">
+                    <div class="flex justify-between mb-3">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-full bg-zinc-800"></div>
+                            <span class="text-sm font-black italic">@LosingMyMind</span>
+                        </div>
+                        <span class="text-[10px] font-bold text-red-500">RUGGED -$12,000</span>
+                    </div>
+                    <p class="text-sm text-zinc-400">I hate this game. <span class="text-white font-bold">$MOON_INU</span> just pulled the rug on me. Devs are gone. 💀</p>
+                </div>
+            </div>
+        </header>
+    </div>
+
+    <nav class="fixed bottom-0 w-full max-w-md h-24 bg-black/80 backdrop-blur-xl border-t border-white/5 flex justify-around items-center px-10 z-[80]">
+        <button onclick="switchTab('market')" class="nav-item nav-active" id="nav-market"><i data-lucide="home" class="w-7 h-7"></i></button>
+        <button onclick="switchTab('social')" class="nav-item" id="nav-social"><i data-lucide="users" class="w-7 h-7"></i></button>
+        <button onclick="switchTab('profile')" class="nav-item" id="nav-profile"><i data-lucide="user" class="w-7 h-7"></i></button>
+    </nav>
+
+    <script>
+        // --- DATA & STATE ---
+        let balance = 10000;
+        let portfolio = {};
+        let activeCoin = null;
+        let history = [];
+        let coins = [];
+
+        const BLUE_CHIPS = ["Bitcoin", "Ethereum", "Solana", "Cardano", "Polkadot", "Avalanche", "Chainlink", "Polygon", "Litecoin", "Algorand", "Cosmos", "Monero", "Stellar", "Near", "Fantom"];
+        const MEME_PREFIX = ["CHILL", "DOGE", "PEPE", "WOJAK", "CHAD", "PUMP", "MOON", "RUG", "AI", "SAFE", "TURBO", "FLOKI", "BONK", "MOG", "GOAT", "TRUMP", "POPCAT", "WIF"];
+        const MEME_SUFFIX = ["GUY", "INU", "CAP", "BULL", "ROCKET", "DAO", "X", "ZILLA", "COIN", "GOAT", "DENG", "BOME", "MYRO", "SLERF", "ZEREBRO"];
+
+        // --- ENGINES ---
+        function init() {
+            lucide.createIcons();
+            generateInitialMarket();
+            startPriceEngine();
+            renderMarket();
         }
-      });
-      renderDiscover();
-    }
 
-    window.onload = () => {
-      renderDiscover();
-      setInterval(livePriceUpdate, 2800);
-    };
-  </script>
+        function generateInitialMarket() {
+            // 15 Blue Chips
+            BLUE_CHIPS.forEach((name, i) => {
+                coins.push(createCoin(name, false, 20000 + (Math.random() * 40000)));
+            });
+            // 40 Memes
+            for(let i=0; i<40; i++) {
+                const name = MEME_PREFIX[Math.floor(Math.random()*MEME_PREFIX.length)] + "_" + MEME_SUFFIX[Math.floor(Math.random()*MEME_SUFFIX.length)];
+                coins.push(createCoin(name, true, 0.0001 + (Math.random() * 0.005)));
+            }
+        }
+
+        function createCoin(name, isMeme, startPrice) {
+            const isAntiRug = isMeme && Math.random() < 0.4; // 40% Chance
+            return {
+                id: Math.random().toString(36).substr(2, 9),
+                name: name.toUpperCase(),
+                price: startPrice,
+                isMeme,
+                isAntiRug,
+                isRugged: false,
+                riskLevel: (isMeme && !isAntiRug) ? 70 : 0,
+                createdAt: Date.now(),
+                mcap: isMeme ? (10 + Math.random() * 500) : (10000 + Math.random() * 900000),
+                history: Array.from({length: 40}, () => startPrice * (0.95 + Math.random() * 0.1)),
+                img: `https://api.dicebear.com/7.x/identicon/svg?seed=${name}&backgroundColor=0D0D0D`,
+                trades: [] // Para desenhar pontos no gráfico
+            };
+        }
+
+        // --- MARKET ENGINE (TICK EVERY 2s) ---
+        function startPriceEngine() {
+            setInterval(() => {
+                const now = Date.now();
+                coins.forEach(c => {
+                    if(c.isRugged) {
+                        c.price *= 0.5; // Morre rápido
+                        c.history.push(c.price);
+                        c.history.shift();
+                        return;
+                    }
+
+                    // Volatilidade
+                    let vol = c.isMeme ? (c.isAntiRug ? 0.15 : 0.35) : 0.015;
+                    let trend = (Math.random() - 0.48); // Ligeira tendência de subida
+                    c.price *= (1 + (trend * vol));
+
+                    // Lógica Rug Pull
+                    const ageInMs = now - c.createdAt;
+                    if(c.isMeme && !c.isAntiRug && ageInMs > 300000) { // +5 minutos
+                        const rugChance = (ageInMs - 300000) / 10000000; // Aumenta com o tempo
+                        if(Math.random() < rugChance) {
+                            triggerRug(c);
+                        }
+                    }
+
+                    // Atualiza History para o Gráfico
+                    c.history.push(c.price);
+                    c.history.shift();
+                    
+                    // Update Market Cap
+                    c.mcap = c.price * (c.isMeme ? 50000000 : 1000000000) / 1000;
+                });
+
+                if(activeCoin) updateTradeModal();
+                renderMarket();
+                renderPortfolio();
+                updateHeaderBalance();
+            }, 2000);
+        }
+
+        function triggerRug(coin) {
+            coin.isRugged = true;
+            coin.price *= 0.1;
+            console.log(`💀 RUG PULL: ${coin.name}`);
+            if(portfolio[coin.id]) {
+                document.body.classList.add('rug-shake');
+                setTimeout(() => document.body.classList.remove('rug-shake'), 500);
+            }
+        }
+
+        // --- GRAPHICS ENGINE (SVG SMOOTH PATH) ---
+        function drawChart() {
+            if(!activeCoin) return;
+            const svg = document.getElementById('svg-chart');
+            const pLine = document.getElementById('path-line');
+            const pArea = document.getElementById('path-area');
+            const markers = document.getElementById('chart-markers');
+            
+            const data = activeCoin.history;
+            const w = 400;
+            const h = 200;
+            const min = Math.min(...data) * 0.98;
+            const max = Math.max(...data) * 1.02;
+
+            const points = data.map((v, i) => ({
+                x: (i / (data.length - 1)) * w,
+                y: h - ((v - min) / (max - min)) * h
+            }));
+
+            // Algoritmo de Bézier para curva suave
+            let d = `M ${points[0].x} ${points[0].y}`;
+            for (let i = 0; i < points.length - 1; i++) {
+                const p0 = points[i];
+                const p1 = points[i+1];
+                const cp1x = p0.x + (p1.x - p0.x) / 2;
+                d += ` C ${cp1x} ${p0.y}, ${cp1x} ${p1.y}, ${p1.x} ${p1.y}`;
+            }
+
+            pLine.setAttribute('d', d);
+            pArea.setAttribute('d', d + ` L ${w} ${h} L 0 ${h} Z`);
+
+            // Desenhar Pontos de Compra/Venda
+            markers.innerHTML = '';
+            activeCoin.trades.forEach(t => {
+                // Posicionamento simplificado no gráfico live
+                const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                circle.setAttribute("cx", w - 10); // Ponto mais recente
+                circle.setAttribute("cy", points[points.length-1].y);
+                circle.setAttribute("r", "6");
+                circle.setAttribute("class", t === 'buy' ? 'buy-dot' : 'sell-dot');
+                markers.appendChild(circle);
+            });
+            
+            // Cor da linha baseada no preço
+            pLine.setAttribute('stroke', activeCoin.isRugged ? 'var(--rug-red)' : 'var(--neon-green)');
+        }
+
+        // --- UI CORE ---
+        function renderMarket() {
+            const list = document.getElementById('market-list');
+            const scrollPos = list.scrollTop;
+            list.innerHTML = '';
+
+            coins.forEach(c => {
+                const div = document.createElement('div');
+                div.className = "flex justify-between items-center cursor-pointer active:scale-95 transition-all";
+                div.onclick = () => openTrade(c);
+                
+                const change = ((c.price / c.history[0]) - 1) * 100;
+                
+                div.innerHTML = `
+                    <div class="flex items-center gap-4">
+                        <img src="${c.img}" class="w-12 h-12 rounded-2xl border border-white/5 bg-zinc-900 shadow-lg">
+                        <div>
+                            <p class="font-black italic tracking-tighter uppercase text-sm">${c.name} ${c.isAntiRug ? '🛡️' : ''}</p>
+                            <p class="text-[10px] text-zinc-600 font-bold uppercase tracking-widest italic">$${c.mcap.toFixed(1)}M MCAP</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="font-black italic mono text-sm ${c.isRugged ? 'text-red-600 line-through' : ''}">$${c.price < 1 ? c.price.toFixed(6) : c.price.toLocaleString()}</p>
+                        <p class="${change >= 0 ? 'text-green-500' : 'text-red-500'} text-[10px] font-black italic uppercase">${change >= 0 ? '▲' : '▼'} ${Math.abs(change).toFixed(2)}%</p>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+            list.scrollTop = scrollPos;
+        }
+
+        function openTrade(coin) {
+            activeCoin = coin;
+            document.getElementById('m-coin-symbol').innerText = coin.name;
+            document.getElementById('m-coin-icon').innerHTML = `<img src="${coin.img}" class="w-full h-full">`;
+            document.getElementById('m-coin-status').innerText = coin.isRugged ? 'Rugged (Dead)' : 'Live Market';
+            document.getElementById('trade-modal').classList.remove('hidden');
+            updateTradeModal();
+            drawChart();
+        }
+
+        function closeTrade() {
+            document.getElementById('trade-modal').classList.add('hidden');
+            activeCoin = null;
+        }
+
+        function updateTradeModal() {
+            if(!activeCoin) return;
+            document.getElementById('m-coin-mcap').innerText = `$${activeCoin.mcap.toFixed(2)}M`;
+            
+            const pos = portfolio[activeCoin.id];
+            if(pos) {
+                const currentVal = pos.amount * activeCoin.price;
+                const pnl = currentVal - pos.cost;
+                const pnlPerc = (pnl / pos.cost) * 100;
+                
+                document.getElementById('m-user-pos').innerText = `$${currentVal.toFixed(2)}`;
+                document.getElementById('m-user-tokens').innerText = `${pos.amount.toFixed(2)} TOKENS`;
+                document.getElementById('m-user-pnl').innerText = `${pnl >= 0 ? '+' : '-'}$${Math.abs(pnl).toFixed(2)}`;
+                document.getElementById('m-user-pnl').className = `text-xl font-black italic ${pnl >= 0 ? 'text-green-500' : 'text-red-500'}`;
+                document.getElementById('m-user-pnl-perc').innerText = `${pnlPerc.toFixed(2)}%`;
+            } else {
+                document.getElementById('m-user-pos').innerText = `$0.00`;
+                document.getElementById('m-user-tokens').innerText = `0.00 TOKENS`;
+                document.getElementById('m-user-pnl').innerText = `$0.00`;
+                document.getElementById('m-user-pnl').className = `text-xl font-black italic text-zinc-600`;
+                document.getElementById('m-user-pnl-perc').innerText = `0.00%`;
+            }
+            drawChart();
+        }
+
+        function executeTrade(type) {
+            const amount = parseFloat(document.getElementById('trade-input').value);
+            if(type === 'buy') {
+                if(balance >= amount) {
+                    balance -= amount;
+                    if(!portfolio[activeCoin.id]) portfolio[activeCoin.id] = { amount: 0, cost: 0 };
+                    portfolio[activeCoin.id].amount += amount / activeCoin.price;
+                    portfolio[activeCoin.id].cost += amount;
+                    activeCoin.trades.push('buy');
+                    showToast(`Bought ${activeCoin.name}!`, 'success');
+                } else {
+                    showToast("Insufficient Balance!", "error");
+                }
+            } else {
+                const pos = portfolio[activeCoin.id];
+                if(pos) {
+                    const finalValue = pos.amount * activeCoin.price;
+                    balance += finalValue;
+                    history.unshift({ name: activeCoin.name, profit: finalValue - pos.cost, date: new Date().toLocaleTimeString() });
+                    delete portfolio[activeCoin.id];
+                    activeCoin.trades.push('sell');
+                    showToast(`Sold ${activeCoin.name}!`, 'info');
+                }
+            }
+            updateTradeModal();
+            renderPortfolio();
+        }
+
+        function renderPortfolio() {
+            const list = document.getElementById('portfolio-list');
+            list.innerHTML = '';
+            
+            Object.keys(portfolio).forEach(id => {
+                const coin = coins.find(c => c.id === id);
+                const pos = portfolio[id];
+                const currentVal = pos.amount * coin.price;
+                const pnlPerc = ((currentVal / pos.cost) - 1) * 100;
+
+                const div = document.createElement('div');
+                div.className = "p-6 glass rounded-[32px] flex justify-between items-center";
+                div.innerHTML = `
+                    <div class="flex items-center gap-4">
+                        <img src="${coin.img}" class="w-10 h-10 rounded-xl">
+                        <div>
+                            <p class="font-black italic text-sm">${coin.name}</p>
+                            <p class="text-[10px] text-zinc-500 font-bold uppercase tracking-widest italic">${pos.amount.toFixed(0)} Tokens</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="font-black italic mono text-sm">$${currentVal.toFixed(2)}</p>
+                        <p class="${pnlPerc >= 0 ? 'text-green-500' : 'text-red-500'} text-[10px] font-black italic">${pnlPerc >= 0 ? '▲' : '▼'} ${Math.abs(pnlPerc).toFixed(2)}%</p>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+
+            const histList = document.getElementById('history-list');
+            histList.innerHTML = '';
+            history.slice(0, 5).forEach(h => {
+                histList.innerHTML += `
+                    <div class="flex justify-between text-xs px-2">
+                        <span class="font-bold">${h.name}</span>
+                        <span class="mono italic ${h.profit >= 0 ? 'text-green-500' : 'text-red-500'}">${h.profit >= 0 ? '+' : ''}${h.profit.toFixed(2)}</span>
+                    </div>
+                `;
+            });
+        }
+
+        function updateHeaderBalance() {
+            document.getElementById('h-balance').innerText = `$${balance.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+            document.getElementById('cash-balance').innerText = `$${balance.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('tab-active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('nav-active'));
+            
+            document.getElementById(`tab-${tabId}`).classList.add('tab-active');
+            document.getElementById(`nav-${tabId}`).classList.add('nav-active');
+        }
+
+        function showToast(msg, type) {
+            const t = document.createElement('div');
+            t.className = `fixed top-10 left-1/2 -translate-x-1/2 px-8 py-3 glass rounded-full z-[200] border-l-4 font-black italic text-xs uppercase tracking-tighter shadow-2xl transition-all duration-300 translate-y-[-100px] ${type === 'success' ? 'border-green-500' : type === 'error' ? 'border-red-500' : 'border-purple-500'}`;
+            t.innerText = msg;
+            document.body.appendChild(t);
+            setTimeout(() => t.classList.remove('translate-y-[-100px]'), 100);
+            setTimeout(() => {
+                t.classList.add('translate-y-[-100px]');
+                setTimeout(() => t.remove(), 400);
+            }, 2500);
+        }
+
+        window.onload = init;
+    </script>
 </body>
 </html>
